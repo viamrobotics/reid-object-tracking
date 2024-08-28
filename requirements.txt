@@ -1,0 +1,47 @@
+viam-sdk>=0.21
+
+numpy
+
+torch; sys_platform == 'darwin'
+torch==2.2.2+cpu; sys_platform  == 'linux'
+-f https://download.pytorch.org/whl/cpu/torch_stable.html
+
+torchvision == 0.18; sys_platform  == 'darwin'
+torchvision==0.17.2+cpu;sys_platform  == 'linux'
+-f https://download.pytorch.org/whl/cpu/torch_stable.html
+
+opencv-python
+pillow
+
+scipy
+mediapipe
+
+##torchreid
+torchreid
+
+##from torchreid requirements
+numpy
+Cython
+h5py
+Pillow
+six
+scipy
+opencv-python
+matplotlib
+tb-nightly
+future
+yacs
+gdown
+flake8
+yapf
+isort==4.3.21
+imageio
+chardet
+
+## for testing and linting
+pytest
+pytest-asyncio
+pylint
+
+## for building
+pyinstaller
