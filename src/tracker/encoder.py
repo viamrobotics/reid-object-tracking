@@ -1,19 +1,47 @@
 import os
-from typing import List
+from typing import Dict, List
 
 import numpy as np
-from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import cityblock, cosine, euclidean
 from torchreid.utils import FeatureExtractor
 
 from src.config.config import FeatureEncoderConfig
 from src.tracker.detector import Detection
 from src.utils import resource_path
 
-MODEL_NAME_TO_MODEL_RELATIVE_PATH = {
-    "osnet_x0_25": os.path.join(
-        "torchreid",
-        "osnet_x0_25_msmt17_combineall_256x128_amsgrad_ep150_stp60_lr0.0015_b64_fb10_softmax_labelsmooth_flip_jitter.pth",
-    )
+
+class EncoderModelConfig:
+    def __init__(
+        self,
+        model_file: str,
+        repository: str,
+        metric: str,
+        mean: float = 0,
+        std: float = 1,
+    ):
+        self.model_file = model_file
+        self.repository = repository
+        self.metric = metric
+        self.mean = mean
+        self.std = std
+
+    def get_model_path(self):
+        """
+        Returns model absolute path
+        """
+        relative_path = os.path.join(self.repository, self.model_file)
+        return resource_path(relative_path)
+
+
+ENCODERS_CONFIG: Dict[str, EncoderModelConfig] = {
+    "osnet_x0_25": EncoderModelConfig(
+        model_file="osnet_x0_25_msmt17_combineall_256x128_amsgrad_ep150_stp60_lr0.0015_b64_fb10_softmax_labelsmooth_flip_jitter.pth",
+        repository="torchreid",
+        metric="euclidean",
+        mean=10,
+        std=(35 - 10),
+    ),
+    "model_2": None,
 }
 
 
@@ -28,11 +56,11 @@ class FeatureEncoder:
         """
 
         model_name = cfg.feature_extractor_name.value
-        model_path = MODEL_NAME_TO_MODEL_RELATIVE_PATH[model_name]
+        self.model_config = ENCODERS_CONFIG.get(model_name)
 
         self.extractor = FeatureExtractor(
             model_name=model_name,
-            model_path=resource_path(model_path),
+            model_path=self.model_config.get_model_path(),
             device=cfg.device.value,
         )
 
@@ -66,17 +94,21 @@ class FeatureEncoder:
 
         return features
 
-    def compute_distances(self, features):
+    def compute_distance(self, feature_vector_1, feature_vector_2):
         """
         Compute pairwise distances (Euclidean) between feature vectors.
 
         :param features: A list of feature vectors.
         :return: A dictionary with pairwise distances between the features.
         """
-        distances = {}
-        for i, feature in enumerate(features):
-            for j, feature_2 in enumerate(features):
-                if i != j:
-                    dist = euclidean(np.asarray(feature), np.asarray(feature_2))
-                    distances[f"feature_{i} - feature_{j}"] = dist
-        return distances
+
+        if self.model_config.metric == "euclidean":
+            distance = euclidean(feature_vector_1, feature_vector_2)
+        elif self.model_config.metric == "cosine":
+            distance = cosine(feature_vector_1, feature_vector_2)
+        elif self.model_config.metric == "manhattan":
+            distance = cityblock(feature_vector_1, feature_vector_2)
+        else:
+            raise ValueError(f"Unsupported metric '{self.model_config.metric }'")
+
+        return (distance - self.model_config.mean) / self.model_config.std

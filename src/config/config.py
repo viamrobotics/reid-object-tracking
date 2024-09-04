@@ -10,21 +10,21 @@ class TrackerConfig:
             config=config,
             min_value=0,
             max_value=1,
-            default_value=0.85,
+            default_value=0.95,
         )
         self.max_age_track = IntAttribute(
             field_name="max_age_track",
             config=config,
             min_value=0,
-            max_value=100,
+            max_value=10e5,
             default_value=30,
         )
         self.min_distance_threshold = FloatAttribute(
             field_name="min_distance_threshold",
             config=config,
             min_value=0,
-            max_value=5,
-            default_value=1.1,
+            max_value=2,
+            default_value=1.0,
         )
         self.feature_distance_metric = StringAttribute(
             field_name="feature_distance_metric",
@@ -78,7 +78,7 @@ class DetectorConfig:
             min_value=1,
         )
 
-        # TODO: also can add a filter for detection label and confidence here
+        # TODO: add a filter for detection label and confidence here
 
 
 class FeatureEncoderConfig:

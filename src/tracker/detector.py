@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Dict
 
 import cv2
 import mediapipe as mp
@@ -9,11 +9,24 @@ from mediapipe.tasks.python import vision
 from src.config.config import DetectorConfig
 from src.utils import resource_path
 
-MODEL_NAME_TO_MODEL_RELATIVE_PATH = {
-    "effDet0_int8": os.path.join(
-        "mediapipe",
-        "efficientdet_int8.tflite",
-    )
+
+class DetectorModelConfig:
+    def __init__(self, path: str):
+        self.path = path
+
+    def get_model_path(self):
+        """
+        Returns model absolute path
+        """
+        relative_path = os.path.join("mediapipe", self.path)
+        return resource_path(relative_path)
+
+
+DETECTORS_CONFIG: Dict[str, DetectorModelConfig] = {
+    "effDet0_int8": DetectorModelConfig(
+        path="efficientdet_int8.tflite",
+    ),
+    "model_2": None,
 }
 
 
@@ -78,14 +91,16 @@ class Detector:
         """
 
         model_name = cfg.model_name.value
-        model_path = MODEL_NAME_TO_MODEL_RELATIVE_PATH[model_name]
+        self.model_config = DETECTORS_CONFIG.get(model_name)
 
         BaseOptions = mp.tasks.BaseOptions
         ObjectDetectorOptions = mp.tasks.vision.ObjectDetectorOptions
         VisionRunningMode = mp.tasks.vision.RunningMode
 
         self.options = ObjectDetectorOptions(
-            base_options=BaseOptions(model_asset_path=resource_path(model_path)),
+            base_options=BaseOptions(
+                model_asset_path=self.model_config.get_model_path()
+            ),
             max_results=cfg.max_results.value,
             running_mode=VisionRunningMode.IMAGE,
             score_threshold=cfg.threshold.value,

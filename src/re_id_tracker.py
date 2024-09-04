@@ -64,6 +64,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         if self.tracker is not None:
             create_task(self.tracker.stop())
         self.tracker = Tracker(re_id_tracker_cfg, camera=self.camera)
+        self.tracker.start()
 
     async def get_properties(
         self,

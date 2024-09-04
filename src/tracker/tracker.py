@@ -1,27 +1,26 @@
+import asyncio
 import datetime
+from asyncio import Event, Lock, create_task, sleep
 from typing import Dict, List
 
 import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-from scipy.spatial.distance import euclidean
+from viam.components.camera import CameraClient
+from viam.logging import getLogger
+from viam.media.video import CameraMimeType
+from viam.services.vision import Detection
 
 from src.config.config import ReIDObjetcTrackerConfig
 from src.tracker.detector import Detector
 from src.tracker.encoder import FeatureEncoder
-from viam.services.vision import Detection
-from asyncio import Lock, Event, sleep, create_task
-from viam.components.camera import CameraClient
-from viam.media.video import CameraMimeType
-from src.utils import decode_image
-import asyncio
-from viam.logging import getLogger
+from src.utils import decode_image, log_tracks_info, log_cost_matrix
 
 LOGGER = getLogger(__name__)
 
 
 class Track:
-    def __init__(self, track_id, bbox, feature_vector):
+    def __init__(self, track_id, bbox, feature_vector, distance):
         """
         Initialize a track with a unique ID, bounding box, and re-id feature vector.
 
@@ -36,8 +35,9 @@ class Track:
         self.age = 0  # Time since the last update
         self.history = [np.array(bbox)]  # Stores past bounding boxes for this track
         self.velocity = np.array([0, 0, 0, 0])  # Initial velocity (no motion)
+        self.distance = distance
 
-    def update(self, bbox, feature_vector):
+    def update(self, bbox, feature_vector, distance):
         """
         Update the track with a new bounding box and feature vector.
         Also updates the velocity based on the difference between the last and current bbox.
@@ -45,6 +45,7 @@ class Track:
         :param bbox: New bounding box coordinates.
         :param feature_vector: New feature vector.
         """
+        self.distance = distance
         bbox = np.array(bbox)
         self.velocity = bbox - self.bbox  # Update velocity
         self.bbox = bbox
@@ -121,13 +122,13 @@ class Track:
             y_min=self.bbox[1],
             x_max=self.bbox[2],
             y_max=self.bbox[3],
-            confidence=1,
+            confidence=1 - self.distance,
             class_name=self.track_id,
         )
 
 
 class Tracker:
-    def __init__(self, cfg: ReIDObjetcTrackerConfig, camera):
+    def __init__(self, cfg: ReIDObjetcTrackerConfig, camera, debug: bool = False):
         """
         Initialize the Tracker with a Detector for person detection and tracking logic.
 
@@ -135,9 +136,6 @@ class Tracker:
         :param iou_threshold: Threshold for IoU matching.
         :param feature_threshold: Threshold for re-id feature matching.
         """
-
-        # TODO: add mapping distance_name -> function
-
         self.camera: CameraClient = camera
 
         self.lambda_value = cfg.tracker_config.lambda_value.value
@@ -153,26 +151,33 @@ class Tracker:
         self.category_count: Dict[str, int] = {}
 
         self.current_tracks_id = set()
+        self.background_task = None
         self.current_detections = CurrentDetections()
         self.new_object_event = Event()
         self.new_object_notifier = NewObjectNotifier(
             self.new_object_event, cfg.tracker_config.cooldown_period.value
         )
-        self.background_task = create_task(self._background_update_loop())
+        # self.background_task = create_task(self._background_update_loop())
         self.stop_event = Event()
 
+        self.debug = debug
         self.color_map = {}
         self.colormap = cv2.applyColorMap(
             np.arange(256, dtype=np.uint8).reshape(1, -1), cv2.COLORMAP_COOL
         )[0]
         self.count = 0
 
+    def start(self):
+        self.background_task = create_task(self._background_update_loop())
+
     async def stop(self):
         """
         Stop the background loop by setting the stop event.
         """
         self.stop_event.set()
-        await self.background_task  # Wait for the background task to finish
+        self.new_object_notifier.close()
+        if self.background_task is not None:
+            await self.background_task  # Wait for the background task to finish
 
     async def _background_update_loop(self):
         """
@@ -204,7 +209,7 @@ class Tracker:
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
 
-    def update(self, img, visualize: bool = False):
+    def update(self, img, visualize: bool = True):
         """
         Update the tracker with new detections.
 
@@ -214,10 +219,21 @@ class Tracker:
         # Get new detections
         detections = self.detector.detect(img)
 
+        # Keep track of the old tracks, updated and unmatched tracks
+        all_old_tracks_id = set(self.tracks.keys())
+        updated_tracks_ids = set()
+        unmatched_detections = set(range(len(detections)))
+        new_tracks_ids = set()
+
         if not detections:
             self.current_tracks_id = set()
-            for track in self.tracks.values():
-                track.increment_age()
+            self.increment_age_and_delete_tracks()
+            if self.debug:
+                log_tracks_info(
+                    updated_tracks_ids=updated_tracks_ids,
+                    new_tracks_ids=new_tracks_ids,
+                    lost_tracks_ids=all_old_tracks_id - updated_tracks_ids,
+                )
             return
 
         # Compute feature vectors for the current detections
@@ -226,58 +242,50 @@ class Tracker:
         # Initialize cost matrix
         cost_matrix = np.zeros((len(self.tracks), len(detections)))
 
-        # Create a list to keep track of updated track IDs
-        updated_tracks_ids = []
-
-        # New tracks
-        new_tracks_ids = []
-
         # Calculate cost for each pair of track and detection
         track_ids = list(self.tracks.keys())
         for i, track_id in enumerate(track_ids):
             track = self.tracks[track_id]
             for j, detection in enumerate(detections):
                 iou_score = track.iou(detection.bbox)
-                feature_dist = euclidean(track.feature_vector, feature_vectors[j])
-
+                feature_dist = self.encoder.compute_distance(
+                    track.feature_vector, feature_vectors[j]
+                )
                 # Cost function: lambda * feature distance + (1 - lambda) * (1 - IoU)
-                # TODO: figure out this 30
-                cost_matrix[i, j] = self.lambda_value * feature_dist / 30 + (
+                cost_matrix[i, j] = self.lambda_value * feature_dist + (
                     1 - self.lambda_value
                 ) * (1 - iou_score)
 
+                cost_matrix[i, j] = self.lambda_value * feature_dist + (
+                    0.1
+                ) * (  # TODO: test to find more robust parameters
+                    1 - iou_score
+                )
         # Solve the linear assignment problem to find the best matching
         row_indices, col_indices = linear_sum_assignment(cost_matrix)
-
-        # Keep track of the updated and unmatched tracks
-        updated_tracks_ids = set()
-        unmatched_detections = set(range(len(detections)))
-        new_tracks_ids = set()
-
         # Update matched tracks
         for row, col in zip(row_indices, col_indices):
+            distance = cost_matrix[row, col]
             if (
-                cost_matrix[row, col] < self.distance_threshold
+                distance < self.distance_threshold
             ):  # Threshold to determine if a match is valid
                 track_id = track_ids[row]
                 detection = detections[col]
-                self.tracks[track_id].update(detection.bbox, feature_vectors[col])
+                self.tracks[track_id].update(
+                    bbox=detection.bbox,
+                    feature_vector=feature_vectors[col],
+                    distance=distance,
+                )
                 updated_tracks_ids.add(track_id)
                 unmatched_detections.discard(col)
 
-        # Remove or age out tracks that were not updated
-        for track_id in list(self.tracks.keys()):
-            if track_id not in updated_tracks_ids:
-                self.tracks[track_id].increment_age()
-
-                # Optionally remove old tracks
-                if self.tracks[track_id].age > self.max_age_track:
-                    del self.tracks[track_id]
+        self.increment_age_and_delete_tracks(updated_tracks_ids)
 
         # Create new tracks for unmatched detections
         for detection_idx in unmatched_detections:
             new_track_id = self.add_track(
-                detections[detection_idx], feature_vectors[detection_idx]
+                detection=detections[detection_idx],
+                feature_vector=feature_vectors[detection_idx],
             )
             new_tracks_ids.add(new_track_id)
 
@@ -286,6 +294,18 @@ class Tracker:
         # Set the new_object_event if new tracks were found
         if len(new_tracks_ids) > 0:
             self.new_object_notifier.notify_new_object()
+
+        if self.debug:
+            log_tracks_info(
+                updated_tracks_ids=updated_tracks_ids,
+                new_tracks_ids=new_tracks_ids,
+                lost_tracks_ids=all_old_tracks_id - updated_tracks_ids,
+            )
+            log_cost_matrix(
+                cost_matrix=cost_matrix,
+                track_ids=list(self.tracks.keys()),
+                iteration_number=self.count,
+            )
 
         if visualize:
             bgr_image = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -314,11 +334,13 @@ class Tracker:
                 )
 
             # Display the image with the detections
-            cv2.imshow("Detections", bgr_image)
-            cv2.imwrite(f"./results/res_{self.count}.png", bgr_image)
+
+            cv2.imwrite(f"./results2/result_{self.count}.png", bgr_image)
             self.count += 1
-            cv2.waitKey(0)  # Wait for a key press to close the window
-            cv2.destroyAllWindows()
+
+            # cv2.imshow("Detections", bgr_image)
+            # cv2.waitKey(0)  # Wait for a key press to close the window
+            # cv2.destroyAllWindows()
 
     def get_color_from_colormap(self, track_id):
         # Use the track_id to select a color from the colormap
@@ -328,7 +350,7 @@ class Tracker:
         # Use the hashed track_id to select a color from the colormap
         return tuple(int(c) for c in self.colormap[track_id_int])
 
-    def add_track(self, detection, feature_vector):
+    def add_track(self, detection, feature_vector, distance=0):
         """
         Add a new track to the tracker using a Detection object.
 
@@ -338,8 +360,23 @@ class Tracker:
         track_id = self.generate_track_id(detection.category)
 
         # Create a new Track object and store it in the dictionary
-        self.tracks[track_id] = Track(track_id, detection.bbox, feature_vector)
+        self.tracks[track_id] = Track(
+            track_id=track_id,
+            bbox=detection.bbox,
+            feature_vector=feature_vector,
+            distance=distance,
+        )
         return track_id
+
+    def increment_age_and_delete_tracks(self, updated_tracks_ids=[]):
+        # Remove or age out tracks that were not updated
+        for track_id in list(self.tracks.keys()):
+            if track_id not in updated_tracks_ids:
+                self.tracks[track_id].increment_age()
+
+                # Optionally remove old tracks
+                if self.tracks[track_id].age > self.max_age_track:
+                    del self.tracks[track_id]
 
     def generate_track_id(self, category):
         """
@@ -403,6 +440,11 @@ class NewObjectNotifier:
         self.cooldown_seconds = cooldown_period_s
         self.new_object_event = new_object_event
         self.cooldown_task = None
+
+    def close(self):
+        self.new_object_event.clear()
+        if self.cooldown_task is not None:
+            self.cooldown_task.cancel()
 
     def notify_new_object(self):
         """

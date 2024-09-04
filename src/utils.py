@@ -8,6 +8,8 @@ import numpy as np
 from PIL import Image
 from viam.logging import getLogger
 from viam.media.video import CameraMimeType, ViamImage
+import logging
+from tabulate import tabulate
 
 LOGGER = getLogger(__name__)
 SUPPORTED_IMAGE_TYPE = [
@@ -52,7 +54,7 @@ def resource_path(relative_path):
     """
     Get the absolute path to a resource file, considering different environments.
 
-    Args:
+    Args:\
         relative_path (str): The relative path to the resource file.
 
     Returns:
@@ -66,3 +68,41 @@ def resource_path(relative_path):
         base_path = os.path.abspath(os.path.join("src", "models"))
 
     return os.path.join(base_path, relative_path)
+
+
+def log_tracks_info(updated_tracks_ids, new_tracks_ids, lost_tracks_ids):
+    # Creating the table data
+    table_data = [
+        ["Updated Tracks", ", ".join(updated_tracks_ids)],
+        ["New Tracks", ", ".join(new_tracks_ids)],
+        ["Lost Tracks", ", ".join(lost_tracks_ids)],
+    ]
+
+    # Formatting the table using tabulate
+    table_message = tabulate(
+        table_data, headers=["Category", "Track IDs"], tablefmt="grid"
+    )
+
+    # Log the table
+    LOGGER.info("\n\n" + table_message + "\n\n")
+
+
+def log_cost_matrix(cost_matrix, track_ids, iteration_number):
+    # track_ids = list(self.tracks.keys())
+
+    # Create the detection headers
+    detection_headers = [f"detection_{i+1}" for i in range(cost_matrix.shape[1])]
+
+    # Creating the table data
+    table_data = []
+    for track_id, row in zip(track_ids, cost_matrix):
+        table_data.append([track_id] + list(row))
+
+    # Formatting the table using tabulate
+    table_message = tabulate(
+        table_data, headers=["Track ID"] + detection_headers, tablefmt="grid"
+    )
+    # Configure the logging to write to a file
+    logger = logging.getLogger("TrackDetectionLogger")
+    logger.info(f"Iteration number: {iteration_number}")
+    logger.info(table_message + "\n\n")
