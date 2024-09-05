@@ -27,9 +27,9 @@ MIN_CONFIDENCE_PASSING = 0.8
 WORKING_CONFIG_DICT = {
     "camera_name": CAMERA_NAME,
     # TrackerConfig
-    "lambda_value": 0.95,
+    "lambda_value": 1,
     "max_age_track": 3000,
-    "min_distance_threshold": 1.0,
+    "min_distance_threshold": 0.4,
     "feature_distance_metric": "euclidean",
     # DetectorConfig
     "detector_model_name": "effDet0_int8",
@@ -37,7 +37,7 @@ WORKING_CONFIG_DICT = {
     "detector_device": "cpu",
     "detection_max_detection_results": 5,
     # FeatureEncoderConfig
-    "feature_extractor_model": "osnet_x0_25",
+    "feature_extractor_model": "osnet_ain_x1_0",
     "feature_encoder_device": "cpu",
 }
 

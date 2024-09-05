@@ -1,0 +1,14 @@
+{
+  "$schema": "https://dl.viam.dev/module.schema.json",
+  "module_id": "viam:re-id-object-tracking",
+  "visibility": "public",
+  "url": "https://github.com/viam-modules/re-id-object-tracking",
+  "description": "This object tracking viam module integrates appearance-based re-identification (Re-ID) and geometric matching via Intersection over Union (IoU) to robustly track objects.",
+  "models": [
+    {
+      "api": "rdk:service:vision",
+      "model": "viam:vision:re-id-object-tracker"
+    }
+  ],
+  "entrypoint": "dist/main"
+}

@@ -41,6 +41,13 @@ ENCODERS_CONFIG: Dict[str, EncoderModelConfig] = {
         mean=10,
         std=(35 - 10),
     ),
+    "osnet_ain_x1_0": EncoderModelConfig(
+        model_file="osnet_ain_ms_d_c.pth.tar",
+        repository="torchreid",
+        metric="cosine",
+        mean=0,
+        std=1,
+    ),
     "model_2": None,
 }
 

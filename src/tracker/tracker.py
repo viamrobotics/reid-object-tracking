@@ -157,7 +157,6 @@ class Tracker:
         self.new_object_notifier = NewObjectNotifier(
             self.new_object_event, cfg.tracker_config.cooldown_period.value
         )
-        # self.background_task = create_task(self._background_update_loop())
         self.stop_event = Event()
 
         self.debug = debug
@@ -209,7 +208,7 @@ class Tracker:
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
 
-    def update(self, img, visualize: bool = True):
+    def update(self, img, visualize: bool = False):
         """
         Update the tracker with new detections.
 

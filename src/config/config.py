@@ -87,7 +87,7 @@ class FeatureEncoderConfig:
             field_name="feature_extractor_model",
             config=config,
             default_value="osnet_x0_25",
-            allowlist=["osnet_x0_25", "osnet_x0_5", "osnet_x1"],
+            allowlist=["osnet_x0_25", "osnet_ain_x1_0"],
         )
 
         self.device = StringAttribute(
