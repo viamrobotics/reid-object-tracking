@@ -135,3 +135,26 @@ class StringAttribute(Attribute):
                 f"Invalid value '{value}' for '{self.field_name}'. Allowed values are: {self.allowlist}."
             )
         return value
+
+
+class BoolAttribute(Attribute):
+    def __init__(
+        self,
+        field_name: str,
+        config: "ServiceConfig",
+        required: bool = False,
+        default_value: str = None,
+    ):
+        super().__init__(field_name, config, required, default_value)
+
+    def validate(self, value: Any):
+        value = super().validate(value)
+        if not isinstance(value, bool):  # if it's not the default value
+            if not hasattr(
+                value, "bool_value"
+            ):  # if it's from the config but the wrong kind
+                raise ValueError(
+                    f"Expected string for '{self.field_name}', got {type(value).__name__}"
+                )
+            value = value.bool_value
+        return value

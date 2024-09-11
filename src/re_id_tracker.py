@@ -57,8 +57,8 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ):
-        camera_name = config.attributes.fields["camera_name"].string_value
-        self.camera = dependencies[Camera.get_resource_name(camera_name)]
+        self.camera_name = config.attributes.fields["camera_name"].string_value
+        self.camera = dependencies[Camera.get_resource_name(self.camera_name)]
 
         re_id_tracker_cfg = ReIDObjetcTrackerConfig(config)
         if self.tracker is not None:
@@ -124,7 +124,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         extra: Mapping[str, Any],
         timeout: float,
     ) -> List[Detection]:
-        return await self.tracker.get_current_detections()
+        return NotImplementedError
 
     async def get_classifications(
         self,
@@ -134,8 +134,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         extra: Optional[Mapping[str, Any]] = None,
         timeout: Optional[float] = None,
     ) -> List[Classification]:
-        if await self.tracker.is_new_object_detected():
-            return [Classification(class_name="new_object_detected", confidence=1)]
+        return NotImplementedError
 
     async def get_classifications_from_camera(
         self,
@@ -145,12 +144,20 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         extra: Optional[Mapping[str, Any]] = None,
         timeout: Optional[float] = None,
     ) -> List[Classification]:
-        return NotImplementedError
-        return await self.tracker.get_current_detections()
+        if not camera_name == self.camera_name:
+            raise ValueError(
+                "The camera_name doesn't match the camera_name configured for the tracker."
+            )
+        if await self.tracker.is_new_object_detected():
+            return [Classification(class_name="new_object_detected", confidence=1)]
 
     async def get_detections_from_camera(
         self, camera_name: str, *, extra: Mapping[str, Any], timeout: float
     ) -> List[Detection]:
+        if not camera_name == self.camera_name:
+            raise ValueError(
+                "The camera_name doesn't match the camera_name configured for the tracker."
+            )
         return await self.tracker.get_current_detections()
 
     async def do_command(

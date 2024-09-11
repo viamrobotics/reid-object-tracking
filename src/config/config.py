@@ -1,6 +1,10 @@
 from viam.proto.app.robot import ServiceConfig
 
-from src.config.attribute import FloatAttribute, IntAttribute, StringAttribute
+from src.config.attribute import (
+    FloatAttribute,
+    IntAttribute,
+    StringAttribute,
+)
 
 
 class TrackerConfig:
@@ -16,7 +20,7 @@ class TrackerConfig:
             field_name="max_age_track",
             config=config,
             min_value=0,
-            max_value=10e5,
+            max_value=1e4,
             default_value=30,
         )
         self.min_distance_threshold = FloatAttribute(
@@ -98,6 +102,19 @@ class FeatureEncoderConfig:
         )
 
 
+class TracksManagerConfig:
+    def __init__(self, config: "ServiceConfig"):
+        self.path_to_db = StringAttribute(
+            field_name="path_to_database", config=config, required=True
+        )
+
+        self.save_period = IntAttribute(
+            field_name="save_period",
+            config=config,
+            default_value=5,
+        )
+
+
 class ReIDObjetcTrackerConfig:
     def __init__(self, config: ServiceConfig):
         self.config = config
@@ -105,3 +122,4 @@ class ReIDObjetcTrackerConfig:
         self.tracker_config = TrackerConfig(config)
         self.detector_config = DetectorConfig(config)
         self.encoder_config = FeatureEncoderConfig(config)
+        self.tracks_manager_config = TracksManagerConfig(config)
