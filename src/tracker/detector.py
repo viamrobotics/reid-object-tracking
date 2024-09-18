@@ -26,7 +26,12 @@ DETECTORS_CONFIG: Dict[str, DetectorModelConfig] = {
     "effDet0_int8": DetectorModelConfig(
         path="efficientdet_int8.tflite",
     ),
-    "model_2": None,
+    "effDet0_fp32": DetectorModelConfig(
+        path="efficientdet_fp32.tflite",
+    ),
+    "effDet2_fp32": DetectorModelConfig(
+        path="efficientdet2_fp32.tflite",
+    ),
 }
 
 

@@ -59,7 +59,7 @@ class DetectorConfig:
             field_name="detector_model_name",
             config=config,
             default_value="effDet0_int8",
-            allowlist=["effDet0_int8", "effDet0_fp16", "effDet0_fp32"],
+            allowlist=["effDet0_int8", "effDet0_fp32", "effDet2_fp32"],
         )
         self.threshold = FloatAttribute(
             field_name="detection_threshold",

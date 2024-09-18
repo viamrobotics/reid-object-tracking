@@ -89,6 +89,11 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         extra: Optional[Mapping[str, Any]] = None,
         timeout: Optional[float] = None,
     ):
+        if not camera_name == self.camera_name:
+            raise ValueError(
+                "The camera_name %s doesn't match the camera_name configured for the tracker: %s."
+                % (camera_name, self.camera_name)
+            )
         img = None
         if return_image:
             img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
@@ -167,7 +172,15 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        return NotImplementedError
+        do_command_output = {}
+        relabel_cmd = command.get("relabel", None)
+        if relabel_cmd is not None:
+            # TODO: do type and len check
+            # mpa_id_label = dict(relabel_cmd.struct_value)
+            do_command_output["relabel"] = await self.tracker.relabel_tracks(
+                relabel_cmd
+            )
+        return do_command_output
 
     async def close(self):
         """Safely shut down the resource and prevent further use.

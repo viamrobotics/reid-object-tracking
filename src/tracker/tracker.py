@@ -7,7 +7,6 @@ import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from viam.components.camera import CameraClient
-from viam.logging import getLogger
 from viam.media.video import CameraMimeType
 from viam.services.vision import Detection
 
@@ -17,8 +16,6 @@ from src.tracker.encoder import FeatureEncoder
 from src.tracker.tracks_manager import TracksManager
 from src.tracker.track import Track
 from src.utils import decode_image, log_tracks_info, log_cost_matrix
-
-LOGGER = getLogger(__name__)
 
 
 class Tracker:
@@ -43,8 +40,10 @@ class Tracker:
 
         self.tracks: Dict[str, Track] = {}
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
-        self.start_fresh: bool = True  # TODO should be an option in the config
+        self.start_fresh: bool = False  # TODO should be an option in the config
+        self.start_background_loop = False
         self.category_count: Dict[str, int] = {}
+        self.track_ids_with_label: Dict[str, List[str]] = {}
 
         self.current_tracks_id = set()
         self.background_task = None
@@ -72,8 +71,12 @@ class Tracker:
             self.tracks_manager.parse_category_count_on_disk()
             self.import_category_count_from_tracks_manager()
 
+            self.tracks_manager.parse_map_label_track_ids()
+            self.import_track_ids_with_label_from_tracks_manager()
+
         # start
-        self.background_task = create_task(self._background_update_loop())
+        if self.start_background_loop:
+            self.background_task = create_task(self._background_update_loop())
 
     async def stop(self):
         """
@@ -91,6 +94,11 @@ class Tracker:
     def import_category_count_from_tracks_manager(self):
         self.category_count = self.tracks_manager.get_category_count_on_disk()
 
+    def import_track_ids_with_label_from_tracks_manager(self):
+        self.track_ids_with_label = (
+            self.tracks_manager.get_track_ids_with_label_on_disk()
+        )
+
     async def _background_update_loop(self):
         """
         Background loop that continuously gets images from the camera and updates tracks.
@@ -102,6 +110,24 @@ class Tracker:
             await self.write_detections()  # Write detections to the shared object
             await sleep(self.sleep_period)
 
+    async def relabel_tracks(self, lists_old_label_new_label: Dict[str, str]):
+        answer = lists_old_label_new_label
+        for old_label, new_label in lists_old_label_new_label.items():
+            if old_label not in self.track_ids_with_label.keys():
+                answer[old_label] = (
+                    f"DoCommand relabelling error: couldn't find tracks with the label : {old_label}"
+                )
+                continue
+            track_ids = self.track_ids_with_label.get(old_label)
+            for track_id in track_ids:
+                await self.tracks[track_id].relabel(new_label)
+            self.track_ids_with_label[new_label] = self.track_ids_with_label.pop(
+                old_label
+            )
+            answer[old_label] = f"success: changed label to '{new_label}'"
+        self.tracks_manager.write_track_ids_with_label_on_db(self.track_ids_with_label)
+        return answer
+
     async def write_detections(self):
         """
         Write the current detections from tracks into the shared CurrentDetections object.
@@ -109,7 +135,7 @@ class Tracker:
         cur_tracks = {
             track_id: self.tracks[track_id] for track_id in self.current_tracks_id
         }
-        detections = [track.get_detection() for track in cur_tracks.values()]
+        detections = [await track.get_detection() for track in cur_tracks.values()]
         await self.current_detections.set_detections(detections)
 
     async def get_current_detections(self):
@@ -277,7 +303,6 @@ class Tracker:
         """
         # Generate a unique track ID
         track_id = self.generate_track_id(detection.category)
-
         # Create a new Track object and store it in the dictionary
         self.tracks[track_id] = Track(
             track_id=track_id,
@@ -285,6 +310,9 @@ class Tracker:
             feature_vector=feature_vector,
             distance=distance,
         )
+
+        # Add track_id as label in the beginning
+        self.track_ids_with_label[track_id] = [track_id]
         return track_id
 
     def increment_age_and_delete_tracks(self, updated_tracks_ids=[]):

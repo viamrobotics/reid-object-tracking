@@ -1,9 +1,10 @@
 import numpy as np
 from viam.services.vision import Detection
+from asyncio import Lock
 
 
 class Track:
-    def __init__(self, track_id, bbox, feature_vector, distance):
+    def __init__(self, track_id, bbox, feature_vector, distance, label=None):
         """
         Initialize a track with a unique ID, bounding box, and re-id feature vector.
 
@@ -19,6 +20,8 @@ class Track:
         self.history = [np.array(bbox)]  # Stores past bounding boxes for this track
         self.velocity = np.array([0, 0, 0, 0])  # Initial velocity (no motion)
         self.distance = distance
+        self.label = label
+        self.label_lock = Lock()
 
     def __eq__(self, other) -> bool:
         """
@@ -111,15 +114,27 @@ class Track:
         """
         return np.linalg.norm(self.feature_vector - feature_vector)
 
-    def get_detection(self) -> Detection:
+    async def get_detection(self) -> Detection:
+        label = await self.get_label()
         return Detection(
             x_min=self.bbox[0],
             y_min=self.bbox[1],
             x_max=self.bbox[2],
             y_max=self.bbox[3],
             confidence=1 - self.distance,
-            class_name=self.track_id,
+            class_name=label,
         )
 
     def serialize(self):
         return self.track_id, self.bbox.tobytes(), self.feature_vector.tobytes()
+
+    async def relabel(self, new_label):
+        async with self.label_lock:
+            self.label = new_label
+
+    async def get_label(self):
+        async with self.label_lock:
+            label = self.label
+            if label is not None:
+                return label
+        return self.track_id
