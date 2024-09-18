@@ -1,0 +1,18 @@
+.DS_Store
+*.tar.gz
+.venv/
+__pycache__/
+.vscode
+venv
+results*
+
+/run.sh
+
+#from pyinstaller
+/main/
+/build/
+main.spec
+/dist/main
+
+
+ 
