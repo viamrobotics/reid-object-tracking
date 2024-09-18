@@ -41,7 +41,7 @@ class Tracker:
         self.tracks: Dict[str, Track] = {}
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
         self.start_fresh: bool = False  # TODO should be an option in the config
-        self.start_background_loop = False
+        self.start_background_loop = True
         self.category_count: Dict[str, int] = {}
         self.track_ids_with_label: Dict[str, List[str]] = {}
 
