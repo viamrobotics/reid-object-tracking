@@ -175,11 +175,20 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         do_command_output = {}
         relabel_cmd = command.get("relabel", None)
         if relabel_cmd is not None:
-            # TODO: do type and len check
-            # mpa_id_label = dict(relabel_cmd.struct_value)
             do_command_output["relabel"] = await self.tracker.relabel_tracks(
                 relabel_cmd
             )
+
+        add_cmd = command.get("add", None)
+        if add_cmd is not None:
+            do_command_output["add"] = await self.tracker.add_labeled_embedding(add_cmd)
+
+        delete_cmd = command.get("delete", None)
+        if delete_cmd is not None:
+            do_command_output["delete"] = await self.tracker.delete_labeled_embedding(
+                delete_cmd
+            )
+
         return do_command_output
 
     async def close(self):

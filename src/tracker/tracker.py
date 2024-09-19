@@ -16,6 +16,11 @@ from src.tracker.encoder import FeatureEncoder
 from src.tracker.tracks_manager import TracksManager
 from src.tracker.track import Track
 from src.utils import decode_image, log_tracks_info, log_cost_matrix
+import os
+from PIL import Image
+from viam.logging import getLogger
+
+LOGGER = getLogger(__name__)
 
 
 class Tracker:
@@ -42,8 +47,11 @@ class Tracker:
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
         self.start_fresh: bool = False  # TODO should be an option in the config
         self.start_background_loop = True
+
         self.category_count: Dict[str, int] = {}
         self.track_ids_with_label: Dict[str, List[str]] = {}
+        self.labeled_embeddings: Dict[str, List[np.ndarray]] = {}
+        self.labeled_embeddings_lock = Lock()
 
         self.current_tracks_id = set()
         self.background_task = None
@@ -324,6 +332,57 @@ class Tracker:
                 # Optionally remove old tracks
                 if self.tracks[track_id].age > self.max_age_track:
                     del self.tracks[track_id]
+
+    async def add_labeled_embedding(self, cmd: Dict):
+        answer = {}
+        for label, path in cmd.items():
+            embeddings: List[np.ndarray] = []
+            if not os.path.isdir(path):
+                answer[label] = f"{path} is not a directory. can't add {label}"
+            for file in os.listdir(path):
+                if not (
+                    (".jpg" in file.lower())
+                    or (".jpeg" in file.lower())
+                    or (".png" in file.lower())
+                ):
+                    LOGGER.warning(
+                        "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",
+                        file,
+                    )  # TODO: integrate this warning in the answer of the do_cmd
+                    continue
+                im = Image.open(os.path.join(path, file)).convert("RGB")
+                img = np.array(im)
+                detections = self.detector.detect(img)
+
+                if not detections:
+                    LOGGER.warning(
+                        "Can't find people on file: %s. Ignoring file.",
+                        file,
+                    )  # TODO: integrate this warning in the answer of the do_cmd
+                    continue
+                embeddings += self.encoder.compute_features(img, detections)
+            async with self.labeled_embeddings_lock:
+                self.labeled_embeddings[label] = embeddings
+            answer[label] = f"sucess adding {label}"
+        return answer
+
+    async def delete_labeled_embedding(self, cmd):
+        # TODO: check input here
+        answer = {}
+        for label in cmd:
+            async with self.labeled_embeddings_lock:
+                if label not in self.labeled_embeddings:
+                    answer[label] = f"can't find person {label}"
+                    continue
+                del self.labeled_embeddings[label]
+                answer[label] = f"success deleting: {label}"
+
+        return answer
+
+    async def get_labeled_embeddings(self):
+        async with self.labeled_embeddings_lock:
+            labeled_embeddings = self.labeled_embeddings.copy()
+        return labeled_embeddings
 
     def generate_track_id(self, category):
         """
