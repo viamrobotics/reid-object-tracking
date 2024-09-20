@@ -4,6 +4,7 @@ from src.config.attribute import (
     FloatAttribute,
     IntAttribute,
     StringAttribute,
+    BoolAttribute,
 )
 
 
@@ -50,6 +51,12 @@ class TrackerConfig:
             config=config,
             default_value=5,
             min_value=0,
+        )
+
+        self.start_fresh = BoolAttribute(
+            "start_fresh",
+            config=config,
+            default_value=False,
         )
 
 
@@ -111,7 +118,7 @@ class TracksManagerConfig:
         self.save_period = IntAttribute(
             field_name="save_period",
             config=config,
-            default_value=5,
+            default_value=20,
         )
 
 

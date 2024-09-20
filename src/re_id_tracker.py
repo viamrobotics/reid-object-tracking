@@ -4,6 +4,7 @@ to perform face Re-Id.
 """
 
 from asyncio import create_task
+import asyncio
 from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence
 
 from typing_extensions import Self
@@ -62,7 +63,13 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
 
         re_id_tracker_cfg = ReIDObjetcTrackerConfig(config)
         if self.tracker is not None:
-            create_task(self.tracker.stop())
+            create_task(self.stop_and_get_new_tracker(re_id_tracker_cfg))
+        else:
+            self.tracker = Tracker(re_id_tracker_cfg, camera=self.camera)
+            self.tracker.start()
+
+    async def stop_and_get_new_tracker(self, re_id_tracker_cfg):
+        await self.tracker.stop()
         self.tracker = Tracker(re_id_tracker_cfg, camera=self.camera)
         self.tracker.start()
 

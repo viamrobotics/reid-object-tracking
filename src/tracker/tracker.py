@@ -45,7 +45,7 @@ class Tracker:
 
         self.tracks: Dict[str, Track] = {}
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
-        self.start_fresh: bool = False  # TODO should be an option in the config
+        self.start_fresh: bool = cfg.tracker_config.start_fresh.value
         self.start_background_loop = True
 
         self.category_count: Dict[str, int] = {}
@@ -92,9 +92,9 @@ class Tracker:
         """
         self.stop_event.set()
         self.new_object_notifier.close()
+        self.tracks_manager.close()
         if self.background_task is not None:
             await self.background_task  # Wait for the background task to finish
-        self.tracks_manager.close()
 
     def import_tracks_from_tracks_manager(self):
         self.tracks = self.tracks_manager.get_tracks_on_disk()
