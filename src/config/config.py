@@ -21,15 +21,15 @@ class TrackerConfig:
             field_name="max_age_track",
             config=config,
             min_value=0,
-            max_value=1e4,
-            default_value=30,
+            max_value=1e5,
+            default_value=1e3,
         )
         self.min_distance_threshold = FloatAttribute(
             field_name="min_distance_threshold",
             config=config,
             min_value=0,
             max_value=2,
-            default_value=1.0,
+            default_value=0.5,
         )
         self.feature_distance_metric = StringAttribute(
             field_name="feature_distance_metric",
@@ -97,7 +97,7 @@ class FeatureEncoderConfig:
         self.feature_extractor_name = StringAttribute(
             field_name="feature_extractor_model",
             config=config,
-            default_value="osnet_x0_25",
+            default_value="osnet_ain_x1_0",
             allowlist=["osnet_x0_25", "osnet_ain_x1_0"],
         )
 

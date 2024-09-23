@@ -34,6 +34,8 @@ class Tracker:
         """
         self.camera: CameraClient = camera
 
+        self.start_background_loop = True
+
         self.lambda_value = cfg.tracker_config.lambda_value.value
         self.distance_threshold = cfg.tracker_config.min_distance_threshold.value
         self.max_age_track = cfg.tracker_config.max_age_track.value
@@ -46,10 +48,11 @@ class Tracker:
         self.tracks: Dict[str, Track] = {}
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
         self.start_fresh: bool = cfg.tracker_config.start_fresh.value
-        self.start_background_loop = True
 
         self.category_count: Dict[str, int] = {}
+
         self.track_ids_with_label: Dict[str, List[str]] = {}
+
         self.labeled_embeddings: Dict[str, List[np.ndarray]] = {}
         self.labeled_embeddings_lock = Lock()
 
@@ -114,9 +117,11 @@ class Tracker:
         while not self.stop_event.is_set():
             viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
             img = decode_image(viam_img)
-            self.update(img)  # Update tracks
-            await self.write_detections()  # Write detections to the shared object
-            await sleep(self.sleep_period)
+            # TODO: check img here
+            if img is not None:
+                self.update(img)  # Update tracks
+                await self.write_detections()  # Write detections to the shared object
+                await sleep(self.sleep_period)
 
     async def relabel_tracks(self, lists_old_label_new_label: Dict[str, str]):
         answer = lists_old_label_new_label
@@ -384,6 +389,23 @@ class Tracker:
             labeled_embeddings = self.labeled_embeddings.copy()
         return labeled_embeddings
 
+    async def list_objects(self):
+        answer = []
+        for label, track_ids in self.track_ids_with_label.items():
+            for track_id in track_ids:
+                answer.append(self.generate_person_data(label=label, id=track_id))
+
+        return answer
+
+    @staticmethod
+    def generate_person_data(label, id):
+        if id == label:
+            authorized = False
+        else:
+            authorized = True
+
+        return {"label": label, "id": id, "authorized": authorized}
+
     def generate_track_id(self, category):
         """
         Generate a unique track ID based on the category and current date/time.
@@ -406,14 +428,6 @@ class Tracker:
         track_id = f"{category}_{count}_{timestamp}"
 
         return track_id
-
-    def get_tracks(self):
-        """
-        Get the current list of active tracks.
-
-        :return: List of active tracks.
-        """
-        return self.tracks
 
 
 class CurrentDetections:

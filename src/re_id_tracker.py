@@ -196,6 +196,10 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
                 delete_cmd
             )
 
+        list_cmd = command.get("list", None)
+        if list_cmd:
+            do_command_output["list"] = await self.tracker.list_objects()
+
         return do_command_output
 
     async def close(self):
