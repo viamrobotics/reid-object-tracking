@@ -1,24 +1,24 @@
 import asyncio
 import datetime
+import os
 from asyncio import Event, Lock, create_task, sleep
 from typing import Dict, List
 
 import cv2
 import numpy as np
+from PIL import Image
 from scipy.optimize import linear_sum_assignment
 from viam.components.camera import CameraClient
+from viam.logging import getLogger
 from viam.media.video import CameraMimeType
 from viam.services.vision import Detection
 
 from src.config.config import ReIDObjetcTrackerConfig
 from src.tracker.detector import Detector
 from src.tracker.encoder import FeatureEncoder
-from src.tracker.tracks_manager import TracksManager
 from src.tracker.track import Track
-from src.utils import decode_image, log_tracks_info, log_cost_matrix
-import os
-from PIL import Image
-from viam.logging import getLogger
+from src.tracker.tracks_manager import TracksManager
+from src.utils import decode_image, log_cost_matrix, log_tracks_info
 
 LOGGER = getLogger(__name__)
 
@@ -33,9 +33,6 @@ class Tracker:
         :param feature_threshold: Threshold for re-id feature matching.
         """
         self.camera: CameraClient = camera
-
-        self.start_background_loop = True
-
         self.lambda_value = cfg.tracker_config.lambda_value.value
         self.distance_threshold = cfg.tracker_config.min_distance_threshold.value
         self.max_age_track = cfg.tracker_config.max_age_track.value
@@ -55,6 +52,7 @@ class Tracker:
 
         self.labeled_embeddings: Dict[str, List[np.ndarray]] = {}
         self.labeled_embeddings_lock = Lock()
+        self.reid_threshold = cfg.tracker_config.re_id_threshold.value
 
         self.current_tracks_id = set()
         self.background_task = None
@@ -71,6 +69,8 @@ class Tracker:
             np.arange(256, dtype=np.uint8).reshape(1, -1), cv2.COLORMAP_COOL
         )[0]
         self.count = 0
+
+        self.start_background_loop = cfg.tracker_config._start_background_loop
 
     def start(self):
         if not self.start_fresh:
@@ -117,7 +117,7 @@ class Tracker:
         while not self.stop_event.is_set():
             viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
             img = decode_image(viam_img)
-            # TODO: check img here
+            # TODO: checkp  img here
             if img is not None:
                 self.update(img)  # Update tracks
                 await self.write_detections()  # Write detections to the shared object
@@ -241,6 +241,8 @@ class Tracker:
             new_tracks_ids.add(new_track_id)
 
         self.current_tracks_id = updated_tracks_ids.union(new_tracks_ids)
+
+        self.identify_tracks(self.current_tracks_id)
 
         # Set the new_object_event if new tracks were found
         if len(new_tracks_ids) > 0:
@@ -368,7 +370,9 @@ class Tracker:
                 embeddings += self.encoder.compute_features(img, detections)
             async with self.labeled_embeddings_lock:
                 self.labeled_embeddings[label] = embeddings
-            answer[label] = f"sucess adding {label}"
+            answer[label] = (
+                f"sucess adding {label}, found {len(embeddings)} embeddings."
+            )
         return answer
 
     async def delete_labeled_embedding(self, cmd):
@@ -428,6 +432,34 @@ class Tracker:
         track_id = f"{category}_{count}_{timestamp}"
 
         return track_id
+
+    def identify_tracks(self, track_ids):
+        """
+        Args:
+        track_ids: track ids of tracks to be identified
+        """
+        for track_id in track_ids:
+            track = self.tracks[track_id]
+            track_embedding = track.get_embedding()
+            found_match = False
+            for label, embeddings in self.labeled_embeddings.items():
+                for embedding in embeddings:
+                    feature_dist = self.encoder.compute_distance(
+                        track_embedding, embedding
+                    )
+                    LOGGER.error(
+                        f"For {label} and {track.label} distance is {feature_dist}"
+                    )
+                    if feature_dist < self.reid_threshold:
+                        found_match = True
+                        old_label = track._get_label()
+                        track.relabel_reid_label(label)
+                        self.track_ids_with_label[label] = (
+                            self.track_ids_with_label.pop(old_label)
+                        )
+                        break
+                if found_match:
+                    break
 
 
 class CurrentDetections:

@@ -20,8 +20,10 @@ class Track:
         self.history = [np.array(bbox)]  # Stores past bounding boxes for this track
         self.velocity = np.array([0, 0, 0, 0])  # Initial velocity (no motion)
         self.distance = distance
+
         self.label = label
         self.label_lock = Lock()
+        self.label_from_reid = None
 
     def __eq__(self, other) -> bool:
         """
@@ -128,13 +130,35 @@ class Track:
     def serialize(self):
         return self.track_id, self.bbox.tobytes(), self.feature_vector.tobytes()
 
+    def add_label(self, label_from_reid):
+        self.label_from_reid = label_from_reid
+
+    def get_embedding(self):
+        return self.feature_vector
+
     async def relabel(self, new_label):
         async with self.label_lock:
             self.label = new_label
 
+    def relabel_reid_label(self, label: str):
+        self.label_from_reid = label
+
     async def get_label(self):
+        """
+        Tries to return label first, then label_from_reid
+        and finally track_id
+        """
         async with self.label_lock:
             label = self.label
             if label is not None:
                 return label
+        if self.label_from_reid is not None:
+            return self.label_from_reid
+        return self.track_id
+
+    def _get_label(self):
+        if self.label is not None:
+            return self.label
+        if self.label_from_reid is not None:
+            return self.label_from_reid
         return self.track_id

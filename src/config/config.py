@@ -10,6 +10,9 @@ from src.config.attribute import (
 
 class TrackerConfig:
     def __init__(self, config: "ServiceConfig"):
+        self.re_id_threshold = FloatAttribute(
+            field_name="re_id_threshold", config=config, min_value=0, default_value=0.3
+        )
         self.lambda_value = FloatAttribute(
             field_name="lambda_value",
             config=config,
@@ -54,9 +57,13 @@ class TrackerConfig:
         )
 
         self.start_fresh = BoolAttribute(
-            "start_fresh",
+            field_name="start_fresh",
             config=config,
             default_value=False,
+        )
+
+        self._start_background_loop = BoolAttribute(
+            field_name="_start_background_loop", config=config, default_value=True
         )
 
 
