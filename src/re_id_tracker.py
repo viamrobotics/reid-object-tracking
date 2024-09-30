@@ -114,7 +114,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
 
         detections = None
         if return_detections:
-            detections = await self.tracker.get_current_detections()
+            detections = self.tracker.get_current_detections()
         return CaptureAllResult(
             image=img, classifications=classifications, detections=detections
         )
@@ -170,7 +170,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
             raise ValueError(
                 "The camera_name doesn't match the camera_name configured for the tracker."
             )
-        return await self.tracker.get_current_detections()
+        return self.tracker.get_current_detections()
 
     async def do_command(
         self,
@@ -182,9 +182,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         do_command_output = {}
         relabel_cmd = command.get("relabel", None)
         if relabel_cmd is not None:
-            do_command_output["relabel"] = await self.tracker.relabel_tracks(
-                relabel_cmd
-            )
+            do_command_output["relabel"] = self.tracker.relabel_tracks(relabel_cmd)
 
         add_cmd = command.get("add", None)
         if add_cmd is not None:

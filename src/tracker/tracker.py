@@ -115,47 +115,53 @@ class Tracker:
         Background loop that continuously gets images from the camera and updates tracks.
         """
         while not self.stop_event.is_set():
-            viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
-            img = decode_image(viam_img)
-            # TODO: checkp  img here
+            img = await self.get_and_decode_img()
+            # TODO: check img here
             if img is not None:
                 self.update(img)  # Update tracks
-                await self.write_detections()  # Write detections to the shared object
-                await sleep(self.sleep_period)
+                self.write_detections()  # Write detections to the shared object
+            await sleep(self.sleep_period)
 
-    async def relabel_tracks(self, lists_old_label_new_label: Dict[str, str]):
-        answer = lists_old_label_new_label
-        for old_label, new_label in lists_old_label_new_label.items():
+    def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
+        answer = dict_old_label_new_label
+        for old_label, new_label in dict_old_label_new_label.items():
             if old_label not in self.track_ids_with_label.keys():
                 answer[old_label] = (
                     f"DoCommand relabelling error: couldn't find tracks with the label : {old_label}"
                 )
                 continue
-            track_ids = self.track_ids_with_label.get(old_label)
-            for track_id in track_ids:
-                await self.tracks[track_id].relabel(new_label)
-            self.track_ids_with_label[new_label] = self.track_ids_with_label.pop(
-                old_label
-            )
+            track_ids_with_old_label = self.track_ids_with_label.get(old_label)
+            for track_id in track_ids_with_old_label:
+                self.tracks[track_id].relabel(new_label)
+                if new_label in self.track_ids_with_label.keys():
+                    self.track_ids_with_label[new_label].append(track_id)
+                else:
+                    self.track_ids_with_label[new_label] = [track_id]
+            del self.track_ids_with_label[old_label]
             answer[old_label] = f"success: changed label to '{new_label}'"
         self.tracks_manager.write_track_ids_with_label_on_db(self.track_ids_with_label)
         return answer
 
-    async def write_detections(self):
+    async def get_and_decode_img(self):
+        viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
+        return decode_image(viam_img)
+
+    def write_detections(self):
         """
         Write the current detections from tracks into the shared CurrentDetections object.
         """
         cur_tracks = {
             track_id: self.tracks[track_id] for track_id in self.current_tracks_id
         }
-        detections = [await track.get_detection() for track in cur_tracks.values()]
-        await self.current_detections.set_detections(detections)
+        detections = [track.get_detection() for track in cur_tracks.values()]
+        # await self.current_detections.set_detections(detections)
+        self.current_detections = detections
 
-    async def get_current_detections(self):
+    def get_current_detections(self):
         """
         Get the current detections.
         """
-        return await self.current_detections.get_detections()
+        return self.current_detections
 
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
@@ -398,7 +404,6 @@ class Tracker:
         for label, track_ids in self.track_ids_with_label.items():
             for track_id in track_ids:
                 answer.append(self.generate_person_data(label=label, id=track_id))
-
         return answer
 
     @staticmethod
@@ -440,23 +445,41 @@ class Tracker:
         """
         for track_id in track_ids:
             track = self.tracks[track_id]
+            if track.has_label():
+                continue
             track_embedding = track.get_embedding()
             found_match = False
             for label, embeddings in self.labeled_embeddings.items():
+                if label == track.label_from_reid:
+                    continue
+
                 for embedding in embeddings:
                     feature_dist = self.encoder.compute_distance(
                         track_embedding, embedding
                     )
-                    LOGGER.error(
-                        f"For {label} and {track.label} distance is {feature_dist}"
-                    )
+
                     if feature_dist < self.reid_threshold:
                         found_match = True
                         old_label = track._get_label()
                         track.relabel_reid_label(label)
-                        self.track_ids_with_label[label] = (
-                            self.track_ids_with_label.pop(old_label)
-                        )
+
+                        # if only one track had the label 'old_label'
+                        if len(self.track_ids_with_label[old_label]) == 1:
+                            if label not in self.track_ids_with_label:
+                                self.track_ids_with_label[label] = (
+                                    self.track_ids_with_label.pop(old_label)
+                                )
+                            else:
+                                self.track_ids_with_label[label].append(track_id)
+                                del self.track_ids_with_label[old_label]
+
+                        else:
+                            self.track_ids_with_label[old_label].remove(track_id)
+                            if label not in self.track_ids_with_label:
+                                self.track_ids_with_label[label] = [track_id]
+                            else:
+                                self.track_ids_with_label[label].append(track_id)
+
                         break
                 if found_match:
                     break

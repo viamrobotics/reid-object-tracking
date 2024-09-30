@@ -116,8 +116,8 @@ class Track:
         """
         return np.linalg.norm(self.feature_vector - feature_vector)
 
-    async def get_detection(self) -> Detection:
-        label = await self.get_label()
+    def get_detection(self) -> Detection:
+        label = self._get_label()
         return Detection(
             x_min=self.bbox[0],
             y_min=self.bbox[1],
@@ -136,12 +136,14 @@ class Track:
     def get_embedding(self):
         return self.feature_vector
 
-    async def relabel(self, new_label):
-        async with self.label_lock:
-            self.label = new_label
+    def relabel(self, new_label):
+        self.label = new_label
 
     def relabel_reid_label(self, label: str):
         self.label_from_reid = label
+
+    def has_label(self) -> bool:
+        return self.label is not None
 
     async def get_label(self):
         """
