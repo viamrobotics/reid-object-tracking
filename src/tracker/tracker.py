@@ -11,7 +11,6 @@ from scipy.optimize import linear_sum_assignment
 from viam.components.camera import CameraClient
 from viam.logging import getLogger
 from viam.media.video import CameraMimeType
-from viam.services.vision import Detection
 
 from src.config.config import ReIDObjetcTrackerConfig
 from src.tracker.detector import Detector
@@ -51,12 +50,10 @@ class Tracker:
         self.track_ids_with_label: Dict[str, List[str]] = {}
 
         self.labeled_embeddings: Dict[str, List[np.ndarray]] = {}
-        self.labeled_embeddings_lock = Lock()
         self.reid_threshold = cfg.tracker_config.re_id_threshold.value
 
         self.current_tracks_id = set()
         self.background_task = None
-        self.current_detections = CurrentDetections()
         self.new_object_event = Event()
         self.new_object_notifier = NewObjectNotifier(
             self.new_object_event, cfg.tracker_config.cooldown_period.value
@@ -119,8 +116,11 @@ class Tracker:
             # TODO: check img here
             if img is not None:
                 self.update(img)  # Update tracks
-                self.write_detections()  # Write detections to the shared object
             await sleep(self.sleep_period)
+
+    async def get_and_decode_img(self):
+        viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
+        return decode_image(viam_img)
 
     def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
         answer = dict_old_label_new_label
@@ -142,26 +142,15 @@ class Tracker:
         self.tracks_manager.write_track_ids_with_label_on_db(self.track_ids_with_label)
         return answer
 
-    async def get_and_decode_img(self):
-        viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
-        return decode_image(viam_img)
-
-    def write_detections(self):
-        """
-        Write the current detections from tracks into the shared CurrentDetections object.
-        """
-        cur_tracks = {
-            track_id: self.tracks[track_id] for track_id in self.current_tracks_id
-        }
-        detections = [track.get_detection() for track in cur_tracks.values()]
-        # await self.current_detections.set_detections(detections)
-        self.current_detections = detections
-
     def get_current_detections(self):
         """
         Get the current detections.
         """
-        return self.current_detections
+        cur_tracks = {
+            track_id: self.tracks[track_id] for track_id in self.current_tracks_id
+        }
+
+        return [track.get_detection() for track in cur_tracks.values()]
 
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
@@ -212,12 +201,6 @@ class Tracker:
                 cost_matrix[i, j] = self.lambda_value * feature_dist + (
                     1 - self.lambda_value
                 ) * (1 - iou_score)
-
-                cost_matrix[i, j] = self.lambda_value * feature_dist + (
-                    0.1
-                ) * (  # TODO: test to find more robust parameters
-                    1 - iou_score
-                )
         # Solve the linear assignment problem to find the best matching
         row_indices, col_indices = linear_sum_assignment(cost_matrix)
         # Update matched tracks
@@ -300,13 +283,8 @@ class Tracker:
                     2,
                 )
 
-            # Display the image with the detections
-
+            # Save the image with the detections
             cv2.imwrite(f"./results2/result_{self.count}.png", bgr_image)
-
-            # cv2.imshow("Detections", bgr_image)
-            # cv2.waitKey(0)  # Wait for a key press to close the window
-            # cv2.destroyAllWindows()
 
     def get_color_from_colormap(self, track_id):
         # Use the track_id to select a color from the colormap
@@ -374,8 +352,7 @@ class Tracker:
                     )  # TODO: integrate this warning in the answer of the do_cmd
                     continue
                 embeddings += self.encoder.compute_features(img, detections)
-            async with self.labeled_embeddings_lock:
-                self.labeled_embeddings[label] = embeddings
+            self.labeled_embeddings[label] = embeddings
             answer[label] = (
                 f"sucess adding {label}, found {len(embeddings)} embeddings."
             )
@@ -385,19 +362,13 @@ class Tracker:
         # TODO: check input here
         answer = {}
         for label in cmd:
-            async with self.labeled_embeddings_lock:
-                if label not in self.labeled_embeddings:
-                    answer[label] = f"can't find person {label}"
-                    continue
-                del self.labeled_embeddings[label]
-                answer[label] = f"success deleting: {label}"
+            if label not in self.labeled_embeddings:
+                answer[label] = f"can't find person {label}"
+                continue
+            del self.labeled_embeddings[label]
+            answer[label] = f"success deleting: {label}"
 
         return answer
-
-    async def get_labeled_embeddings(self):
-        async with self.labeled_embeddings_lock:
-            labeled_embeddings = self.labeled_embeddings.copy()
-        return labeled_embeddings
 
     async def list_objects(self):
         answer = []
@@ -483,26 +454,6 @@ class Tracker:
                         break
                 if found_match:
                     break
-
-
-class CurrentDetections:
-    def __init__(self):
-        self.detections: List[Detection] = []
-        self.lock = Lock()
-
-    async def get_detections(self):
-        """
-        Safely get the current detections.
-        """
-        async with self.lock:
-            return list(self.detections)
-
-    async def set_detections(self, new_detections: List[Detection]):
-        """
-        Safely set the current detections.
-        """
-        async with self.lock:
-            self.detections = new_detections
 
 
 class NewObjectNotifier:

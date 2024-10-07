@@ -31,8 +31,8 @@ class TrackerConfig:
             field_name="min_distance_threshold",
             config=config,
             min_value=0,
-            max_value=2,
-            default_value=0.5,
+            max_value=5,
+            default_value=0.6,
         )
         self.feature_distance_metric = StringAttribute(
             field_name="feature_distance_metric",
