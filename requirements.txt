@@ -1,15 +1,9 @@
 viam-sdk>=0.21
 
-numpy
+numpy <2
 
-torch; sys_platform == 'darwin'
-torch==2.2.2+cpu; sys_platform  == 'linux'
--f https://download.pytorch.org/whl/cpu/torch_stable.html
-
-torchvision == 0.18; sys_platform  == 'darwin'
-torchvision==0.17.2+cpu;sys_platform  == 'linux'
--f https://download.pytorch.org/whl/cpu/torch_stable.html
-
+torch==2.2.2
+torchvision == 0.18
 opencv-python
 pillow
 
