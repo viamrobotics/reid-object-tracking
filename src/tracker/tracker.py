@@ -1,22 +1,23 @@
 import asyncio
 import datetime
+import os
 from asyncio import Event, Lock, create_task, sleep
 from typing import Dict, List
 
 import cv2
 import numpy as np
+from PIL import Image
 from scipy.optimize import linear_sum_assignment
 from viam.components.camera import CameraClient
 from viam.logging import getLogger
 from viam.media.video import CameraMimeType
-from viam.services.vision import Detection
 
 from src.config.config import ReIDObjetcTrackerConfig
 from src.tracker.detector import Detector
 from src.tracker.encoder import FeatureEncoder
-from src.tracker.tracks_manager import TracksManager
 from src.tracker.track import Track
-from src.utils import decode_image, log_tracks_info, log_cost_matrix
+from src.tracker.tracks_manager import TracksManager
+from src.utils import decode_image, log_cost_matrix, log_tracks_info
 
 LOGGER = getLogger(__name__)
 
@@ -31,7 +32,6 @@ class Tracker:
         :param feature_threshold: Threshold for re-id feature matching.
         """
         self.camera: CameraClient = camera
-
         self.lambda_value = cfg.tracker_config.lambda_value.value
         self.distance_threshold = cfg.tracker_config.min_distance_threshold.value
         self.max_age_track = cfg.tracker_config.max_age_track.value
@@ -43,12 +43,17 @@ class Tracker:
 
         self.tracks: Dict[str, Track] = {}
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
-        self.start_fresh: bool = True  # TODO should be an option in the config
+        self.start_fresh: bool = cfg.tracker_config.start_fresh.value
+
         self.category_count: Dict[str, int] = {}
+
+        self.track_ids_with_label: Dict[str, List[str]] = {}
+
+        self.labeled_embeddings: Dict[str, List[np.ndarray]] = {}
+        self.reid_threshold = cfg.tracker_config.re_id_threshold.value
 
         self.current_tracks_id = set()
         self.background_task = None
-        self.current_detections = CurrentDetections()
         self.new_object_event = Event()
         self.new_object_notifier = NewObjectNotifier(
             self.new_object_event, cfg.tracker_config.cooldown_period.value
@@ -62,6 +67,8 @@ class Tracker:
         )[0]
         self.count = 0
 
+        self.start_background_loop = cfg.tracker_config._start_background_loop
+
     def start(self):
         if not self.start_fresh:
             # Parse tracks on database
@@ -72,8 +79,12 @@ class Tracker:
             self.tracks_manager.parse_category_count_on_disk()
             self.import_category_count_from_tracks_manager()
 
+            self.tracks_manager.parse_map_label_track_ids()
+            self.import_track_ids_with_label_from_tracks_manager()
+
         # start
-        self.background_task = create_task(self._background_update_loop())
+        if self.start_background_loop:
+            self.background_task = create_task(self._background_update_loop())
 
     async def stop(self):
         """
@@ -81,9 +92,9 @@ class Tracker:
         """
         self.stop_event.set()
         self.new_object_notifier.close()
+        self.tracks_manager.close()
         if self.background_task is not None:
             await self.background_task  # Wait for the background task to finish
-        self.tracks_manager.close()
 
     def import_tracks_from_tracks_manager(self):
         self.tracks = self.tracks_manager.get_tracks_on_disk()
@@ -91,32 +102,55 @@ class Tracker:
     def import_category_count_from_tracks_manager(self):
         self.category_count = self.tracks_manager.get_category_count_on_disk()
 
+    def import_track_ids_with_label_from_tracks_manager(self):
+        self.track_ids_with_label = (
+            self.tracks_manager.get_track_ids_with_label_on_disk()
+        )
+
     async def _background_update_loop(self):
         """
         Background loop that continuously gets images from the camera and updates tracks.
         """
         while not self.stop_event.is_set():
-            viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
-            img = decode_image(viam_img)
-            self.update(img)  # Update tracks
-            await self.write_detections()  # Write detections to the shared object
+            img = await self.get_and_decode_img()
+            # TODO: check img here
+            if img is not None:
+                self.update(img)  # Update tracks
             await sleep(self.sleep_period)
 
-    async def write_detections(self):
+    async def get_and_decode_img(self):
+        viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
+        return decode_image(viam_img)
+
+    def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
+        answer = dict_old_label_new_label
+        for old_label, new_label in dict_old_label_new_label.items():
+            if old_label not in self.track_ids_with_label.keys():
+                answer[old_label] = (
+                    f"DoCommand relabelling error: couldn't find tracks with the label : {old_label}"
+                )
+                continue
+            track_ids_with_old_label = self.track_ids_with_label.get(old_label)
+            for track_id in track_ids_with_old_label:
+                self.tracks[track_id].relabel(new_label)
+                if new_label in self.track_ids_with_label.keys():
+                    self.track_ids_with_label[new_label].append(track_id)
+                else:
+                    self.track_ids_with_label[new_label] = [track_id]
+            del self.track_ids_with_label[old_label]
+            answer[old_label] = f"success: changed label to '{new_label}'"
+        self.tracks_manager.write_track_ids_with_label_on_db(self.track_ids_with_label)
+        return answer
+
+    def get_current_detections(self):
         """
-        Write the current detections from tracks into the shared CurrentDetections object.
+        Get the current detections.
         """
         cur_tracks = {
             track_id: self.tracks[track_id] for track_id in self.current_tracks_id
         }
-        detections = [track.get_detection() for track in cur_tracks.values()]
-        await self.current_detections.set_detections(detections)
 
-    async def get_current_detections(self):
-        """
-        Get the current detections.
-        """
-        return await self.current_detections.get_detections()
+        return [track.get_detection() for track in cur_tracks.values()]
 
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
@@ -167,12 +201,6 @@ class Tracker:
                 cost_matrix[i, j] = self.lambda_value * feature_dist + (
                     1 - self.lambda_value
                 ) * (1 - iou_score)
-
-                cost_matrix[i, j] = self.lambda_value * feature_dist + (
-                    0.1
-                ) * (  # TODO: test to find more robust parameters
-                    1 - iou_score
-                )
         # Solve the linear assignment problem to find the best matching
         row_indices, col_indices = linear_sum_assignment(cost_matrix)
         # Update matched tracks
@@ -202,6 +230,8 @@ class Tracker:
             new_tracks_ids.add(new_track_id)
 
         self.current_tracks_id = updated_tracks_ids.union(new_tracks_ids)
+
+        self.identify_tracks(self.current_tracks_id)
 
         # Set the new_object_event if new tracks were found
         if len(new_tracks_ids) > 0:
@@ -253,13 +283,8 @@ class Tracker:
                     2,
                 )
 
-            # Display the image with the detections
-
+            # Save the image with the detections
             cv2.imwrite(f"./results2/result_{self.count}.png", bgr_image)
-
-            # cv2.imshow("Detections", bgr_image)
-            # cv2.waitKey(0)  # Wait for a key press to close the window
-            # cv2.destroyAllWindows()
 
     def get_color_from_colormap(self, track_id):
         # Use the track_id to select a color from the colormap
@@ -277,7 +302,6 @@ class Tracker:
         """
         # Generate a unique track ID
         track_id = self.generate_track_id(detection.category)
-
         # Create a new Track object and store it in the dictionary
         self.tracks[track_id] = Track(
             track_id=track_id,
@@ -285,6 +309,9 @@ class Tracker:
             feature_vector=feature_vector,
             distance=distance,
         )
+
+        # Add track_id as label in the beginning
+        self.track_ids_with_label[track_id] = [track_id]
         return track_id
 
     def increment_age_and_delete_tracks(self, updated_tracks_ids=[]):
@@ -296,6 +323,68 @@ class Tracker:
                 # Optionally remove old tracks
                 if self.tracks[track_id].age > self.max_age_track:
                     del self.tracks[track_id]
+
+    async def add_labeled_embedding(self, cmd: Dict):
+        answer = {}
+        for label, path in cmd.items():
+            embeddings: List[np.ndarray] = []
+            if not os.path.isdir(path):
+                answer[label] = f"{path} is not a directory. can't add {label}"
+            for file in os.listdir(path):
+                if not (
+                    (".jpg" in file.lower())
+                    or (".jpeg" in file.lower())
+                    or (".png" in file.lower())
+                ):
+                    LOGGER.warning(
+                        "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",
+                        file,
+                    )  # TODO: integrate this warning in the answer of the do_cmd
+                    continue
+                im = Image.open(os.path.join(path, file)).convert("RGB")
+                img = np.array(im)
+                detections = self.detector.detect(img)
+
+                if not detections:
+                    LOGGER.warning(
+                        "Can't find people on file: %s. Ignoring file.",
+                        file,
+                    )  # TODO: integrate this warning in the answer of the do_cmd
+                    continue
+                embeddings += self.encoder.compute_features(img, detections)
+            self.labeled_embeddings[label] = embeddings
+            answer[label] = (
+                f"sucess adding {label}, found {len(embeddings)} embeddings."
+            )
+        return answer
+
+    async def delete_labeled_embedding(self, cmd):
+        # TODO: check input here
+        answer = {}
+        for label in cmd:
+            if label not in self.labeled_embeddings:
+                answer[label] = f"can't find person {label}"
+                continue
+            del self.labeled_embeddings[label]
+            answer[label] = f"success deleting: {label}"
+
+        return answer
+
+    async def list_objects(self):
+        answer = []
+        for label, track_ids in self.track_ids_with_label.items():
+            for track_id in track_ids:
+                answer.append(self.generate_person_data(label=label, id=track_id))
+        return answer
+
+    @staticmethod
+    def generate_person_data(label, id):
+        if id == label:
+            authorized = False
+        else:
+            authorized = True
+
+        return {"label": label, "id": id, "authorized": authorized}
 
     def generate_track_id(self, category):
         """
@@ -320,33 +409,51 @@ class Tracker:
 
         return track_id
 
-    def get_tracks(self):
+    def identify_tracks(self, track_ids):
         """
-        Get the current list of active tracks.
+        Args:
+        track_ids: track ids of tracks to be identified
+        """
+        for track_id in track_ids:
+            track = self.tracks[track_id]
+            if track.has_label():
+                continue
+            track_embedding = track.get_embedding()
+            found_match = False
+            for label, embeddings in self.labeled_embeddings.items():
+                if label == track.label_from_reid:
+                    continue
 
-        :return: List of active tracks.
-        """
-        return self.tracks
+                for embedding in embeddings:
+                    feature_dist = self.encoder.compute_distance(
+                        track_embedding, embedding
+                    )
 
+                    if feature_dist < self.reid_threshold:
+                        found_match = True
+                        old_label = track._get_label()
+                        track.relabel_reid_label(label)
 
-class CurrentDetections:
-    def __init__(self):
-        self.detections: List[Detection] = []
-        self.lock = Lock()
+                        # if only one track had the label 'old_label'
+                        if len(self.track_ids_with_label[old_label]) == 1:
+                            if label not in self.track_ids_with_label:
+                                self.track_ids_with_label[label] = (
+                                    self.track_ids_with_label.pop(old_label)
+                                )
+                            else:
+                                self.track_ids_with_label[label].append(track_id)
+                                del self.track_ids_with_label[old_label]
 
-    async def get_detections(self):
-        """
-        Safely get the current detections.
-        """
-        async with self.lock:
-            return list(self.detections)
+                        else:
+                            self.track_ids_with_label[old_label].remove(track_id)
+                            if label not in self.track_ids_with_label:
+                                self.track_ids_with_label[label] = [track_id]
+                            else:
+                                self.track_ids_with_label[label].append(track_id)
 
-    async def set_detections(self, new_detections: List[Detection]):
-        """
-        Safely set the current detections.
-        """
-        async with self.lock:
-            self.detections = new_detections
+                        break
+                if found_match:
+                    break
 
 
 class NewObjectNotifier:

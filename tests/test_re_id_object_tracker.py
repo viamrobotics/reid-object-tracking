@@ -13,6 +13,8 @@ from src.tracker.tracker import Tracker
 from src.utils import decode_image
 from src.config.config import ReIDObjetcTrackerConfig
 import os
+from src.tracker.track import Track
+from numpy import float32
 
 CAMERA_NAME = "fake-camera"
 
@@ -39,6 +41,7 @@ WORKING_CONFIG_DICT = {
     # FeatureEncoderConfig
     "feature_extractor_model": "osnet_ain_x1_0",
     "feature_encoder_device": "cpu",
+    "path_to_database": "/Users/robin@viam.com/object-tracking/re-id-object-tracking/tests/tracks.db",
 }
 
 IMG_PATH = "/Users/robin@viam.com/object-tracking/river_plate_2"
@@ -99,20 +102,38 @@ class TestFaceReId:
     #     assert not get_detections_from_camera_result
     #     await service.close()
 
+    # @pytest.mark.asyncio
+    # async def test_tracker_logic(self):
+    #     configure_logger()
+    #     # service = get_vision_service(config_dict=WORKING_CONFIG_DICT, reconfigure=False)
+    #     cam = FakeCamera(CAMERA_NAME, img_path=IMG_PATH, use_ring_buffer=True)
+
+    #     cfg = ReIDObjetcTrackerConfig(get_config(WORKING_CONFIG_DICT))
+    #     tracker = Tracker(cfg, cam, debug=True)
+    #     for _ in range(48):
+    #         viam_img = await cam.get_image(mime_type=CameraMimeType.JPEG)
+    #         img = decode_image(viam_img)
+    #         tracker.update(img)  # Update tracks
+
+    #     await tracker.stop()
+
     @pytest.mark.asyncio
-    async def test_tracker_logic(self):
-        configure_logger()
-        # service = get_vision_service(config_dict=WORKING_CONFIG_DICT, reconfigure=False)
-        cam = FakeCamera(CAMERA_NAME, img_path=IMG_PATH, use_ring_buffer=True)
+    async def test_do_command(self):
+        service = get_vision_service(WORKING_CONFIG_DICT, reconfigure=True)
+        track_id = "person_test"
+        service.tracker.tracks = {
+            track_id: Track(
+                track_id=track_id, bbox=None, feature_vector=None, distance=None
+            )
+        }
+        service.tracker.track_ids_with_label[track_id] = [track_id]
+        label = await service.tracker.tracks[track_id].get_label()
+        assert label == track_id
 
-        cfg = ReIDObjetcTrackerConfig(get_config(WORKING_CONFIG_DICT))
-        tracker = Tracker(cfg, cam, debug=True)
-        for _ in range(48):
-            viam_img = await cam.get_image(mime_type=CameraMimeType.JPEG)
-            img = decode_image(viam_img)
-            tracker.update(img)  # Update tracks
-
-        await tracker.stop()
+        do_command_input = {"relabel": {"person_test": "robin"}}
+        do_command_output = await service.do_command(do_command_input)
+        label = await service.tracker.tracks[track_id].get_label()
+        assert label == "robin"
 
 
 def configure_logger():

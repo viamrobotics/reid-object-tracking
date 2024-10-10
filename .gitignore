@@ -8,6 +8,10 @@ results*
 
 /run.sh
 
+
+#ignore models
+/src/models/
+
 #from pyinstaller
 /main/
 /build/

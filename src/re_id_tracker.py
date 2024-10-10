@@ -4,6 +4,7 @@ to perform face Re-Id.
 """
 
 from asyncio import create_task
+import asyncio
 from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence
 
 from typing_extensions import Self
@@ -62,7 +63,13 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
 
         re_id_tracker_cfg = ReIDObjetcTrackerConfig(config)
         if self.tracker is not None:
-            create_task(self.tracker.stop())
+            create_task(self.stop_and_get_new_tracker(re_id_tracker_cfg))
+        else:
+            self.tracker = Tracker(re_id_tracker_cfg, camera=self.camera)
+            self.tracker.start()
+
+    async def stop_and_get_new_tracker(self, re_id_tracker_cfg):
+        await self.tracker.stop()
         self.tracker = Tracker(re_id_tracker_cfg, camera=self.camera)
         self.tracker.start()
 
@@ -89,6 +96,11 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         extra: Optional[Mapping[str, Any]] = None,
         timeout: Optional[float] = None,
     ):
+        if not camera_name == self.camera_name:
+            raise ValueError(
+                "The camera_name %s doesn't match the camera_name configured for the tracker: %s."
+                % (camera_name, self.camera_name)
+            )
         img = None
         if return_image:
             img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
@@ -102,7 +114,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
 
         detections = None
         if return_detections:
-            detections = await self.tracker.get_current_detections()
+            detections = self.tracker.get_current_detections()
         return CaptureAllResult(
             image=img, classifications=classifications, detections=detections
         )
@@ -158,7 +170,7 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
             raise ValueError(
                 "The camera_name doesn't match the camera_name configured for the tracker."
             )
-        return await self.tracker.get_current_detections()
+        return self.tracker.get_current_detections()
 
     async def do_command(
         self,
@@ -167,7 +179,26 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        return NotImplementedError
+        do_command_output = {}
+        relabel_cmd = command.get("relabel", None)
+        if relabel_cmd is not None:
+            do_command_output["relabel"] = self.tracker.relabel_tracks(relabel_cmd)
+
+        add_cmd = command.get("add", None)
+        if add_cmd is not None:
+            do_command_output["add"] = await self.tracker.add_labeled_embedding(add_cmd)
+
+        delete_cmd = command.get("delete", None)
+        if delete_cmd is not None:
+            do_command_output["delete"] = await self.tracker.delete_labeled_embedding(
+                delete_cmd
+            )
+
+        list_cmd = command.get("list", None)
+        if list_cmd:
+            do_command_output["list"] = await self.tracker.list_objects()
+
+        return do_command_output
 
     async def close(self):
         """Safely shut down the resource and prevent further use.

@@ -98,7 +98,6 @@ class FeatureEncoder:
         # features = self.extractor(processed_images)
 
         features = self.extractor(cropped_images)
-
         return features
 
     def compute_distance(self, feature_vector_1, feature_vector_2):

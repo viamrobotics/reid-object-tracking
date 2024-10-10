@@ -4,11 +4,15 @@ from src.config.attribute import (
     FloatAttribute,
     IntAttribute,
     StringAttribute,
+    BoolAttribute,
 )
 
 
 class TrackerConfig:
     def __init__(self, config: "ServiceConfig"):
+        self.re_id_threshold = FloatAttribute(
+            field_name="re_id_threshold", config=config, min_value=0, default_value=0.3
+        )
         self.lambda_value = FloatAttribute(
             field_name="lambda_value",
             config=config,
@@ -20,15 +24,15 @@ class TrackerConfig:
             field_name="max_age_track",
             config=config,
             min_value=0,
-            max_value=1e4,
-            default_value=30,
+            max_value=1e5,
+            default_value=1e3,
         )
         self.min_distance_threshold = FloatAttribute(
             field_name="min_distance_threshold",
             config=config,
             min_value=0,
-            max_value=2,
-            default_value=1.0,
+            max_value=5,
+            default_value=0.6,
         )
         self.feature_distance_metric = StringAttribute(
             field_name="feature_distance_metric",
@@ -52,6 +56,16 @@ class TrackerConfig:
             min_value=0,
         )
 
+        self.start_fresh = BoolAttribute(
+            field_name="start_fresh",
+            config=config,
+            default_value=False,
+        )
+
+        self._start_background_loop = BoolAttribute(
+            field_name="_start_background_loop", config=config, default_value=True
+        )
+
 
 class DetectorConfig:
     def __init__(self, config: "ServiceConfig"):
@@ -59,7 +73,7 @@ class DetectorConfig:
             field_name="detector_model_name",
             config=config,
             default_value="effDet0_int8",
-            allowlist=["effDet0_int8", "effDet0_fp16", "effDet0_fp32"],
+            allowlist=["effDet0_int8", "effDet0_fp32", "effDet2_fp32"],
         )
         self.threshold = FloatAttribute(
             field_name="detection_threshold",
@@ -90,7 +104,7 @@ class FeatureEncoderConfig:
         self.feature_extractor_name = StringAttribute(
             field_name="feature_extractor_model",
             config=config,
-            default_value="osnet_x0_25",
+            default_value="osnet_ain_x1_0",
             allowlist=["osnet_x0_25", "osnet_ain_x1_0"],
         )
 
@@ -111,7 +125,7 @@ class TracksManagerConfig:
         self.save_period = IntAttribute(
             field_name="save_period",
             config=config,
-            default_value=5,
+            default_value=20,
         )
 
 
