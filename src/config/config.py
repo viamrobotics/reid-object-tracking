@@ -100,7 +100,7 @@ class DetectorConfig:
 
 
 class FeatureEncoderConfig:
-    def __init__(self, config: "ServiceConfig"):
+    def __init__(self, config: ServiceConfig):
         self.feature_extractor_name = StringAttribute(
             field_name="feature_extractor_model",
             config=config,
@@ -112,7 +112,7 @@ class FeatureEncoderConfig:
             field_name="feature_encoder_device",
             config=config,
             default_value="cpu",
-            allowlist=["cpu", "gpu"],
+            allowlist=["cpu", "cuda"],
         )
 
 

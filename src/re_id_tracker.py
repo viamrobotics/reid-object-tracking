@@ -186,17 +186,17 @@ class ReIDObjetcTracker(Vision, Reconfigurable):
 
         add_cmd = command.get("add", None)
         if add_cmd is not None:
-            do_command_output["add"] = await self.tracker.add_labeled_embedding(add_cmd)
+            do_command_output["add"] = self.tracker.add_labeled_embedding(add_cmd)
 
         delete_cmd = command.get("delete", None)
         if delete_cmd is not None:
-            do_command_output["delete"] = await self.tracker.delete_labeled_embedding(
+            do_command_output["delete"] = self.tracker.delete_labeled_embedding(
                 delete_cmd
             )
 
         list_cmd = command.get("list", None)
         if list_cmd:
-            do_command_output["list"] = await self.tracker.list_objects()
+            do_command_output["list"] = self.tracker.list_objects()
 
         return do_command_output
 
