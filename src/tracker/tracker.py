@@ -126,7 +126,10 @@ class Tracker:
             await sleep(self.sleep_period)
 
     async def get_and_decode_img(self):
-        viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
+        try:
+            viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
+        except:
+            return None
         return decode_image(viam_img)
 
     def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
