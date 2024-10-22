@@ -82,6 +82,13 @@ class Tracker:
             self.tracks_manager.parse_map_label_track_ids()
             self.import_track_ids_with_label_from_tracks_manager()
 
+            for label, track_ids in self.track_ids_with_label.items():
+                for track_id in track_ids:
+                    if track_id not in self.tracks:
+                        # TODO: log an error
+                        continue
+                    self.tracks[track_id].add_label(label)
+
         # start
         if self.start_background_loop:
             self.background_task = create_task(self._background_update_loop())
@@ -119,7 +126,10 @@ class Tracker:
             await sleep(self.sleep_period)
 
     async def get_and_decode_img(self):
-        viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
+        try:
+            viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
+        except:
+            return None
         return decode_image(viam_img)
 
     def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
@@ -231,6 +241,7 @@ class Tracker:
 
         self.current_tracks_id = updated_tracks_ids.union(new_tracks_ids)
 
+        # Try to identify tracks that got a new embedding
         self.identify_tracks(self.current_tracks_id)
 
         # Set the new_object_event if new tracks were found
@@ -323,8 +334,9 @@ class Tracker:
                 # Optionally remove old tracks
                 if self.tracks[track_id].age > self.max_age_track:
                     del self.tracks[track_id]
+                    # TODO : also dfelete from track_ids_with_label ?
 
-    async def add_labeled_embedding(self, cmd: Dict):
+    def add_labeled_embedding(self, cmd: Dict):
         answer = {}
         for label, path in cmd.items():
             embeddings: List[np.ndarray] = []
@@ -358,7 +370,7 @@ class Tracker:
             )
         return answer
 
-    async def delete_labeled_embedding(self, cmd):
+    def delete_labeled_embedding(self, cmd):
         # TODO: check input here
         answer = {}
         for label in cmd:
@@ -370,7 +382,7 @@ class Tracker:
 
         return answer
 
-    async def list_objects(self):
+    def list_objects(self):
         answer = []
         for label, track_ids in self.track_ids_with_label.items():
             for track_id in track_ids:
