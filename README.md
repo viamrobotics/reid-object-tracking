@@ -7,15 +7,12 @@ This is a [Viam module](https://docs.viam.com/extend/modular-resources/) providi
 
 ## Getting started
 
-To use this module, follow these instructions to [add a module from the Viam Registry](https://docs.viam.com/modular-resources/configure/#add-a-module-from-the-viam-registry) and select the `viam:vision:re-id-object-tracker` model from the [`re-id-object-tracker` module](https://app.viam.com/module/re-id-object-tracker).
-This module implements the following methods of the [vision service API](https://docs.viam.com/services/vision/#api).
+To use this module, follow these instructions to [add a module from the Viam Registry](https://docs.viam.com/registry/modular-resources/#configuration) and select the `viam:vision:re-id-object-tracker` model from the [`re-id-object-tracker` module](https://app.viam.com/module/re-id-object-tracker).
+This module implements the following methods of the [vision service API](https://docs.viam.com/services/vision/#api):
 
-
-GetDetections(): returns the bounding boxes with the unique id as label and the object detection confidence as confidence.
-
-GetClassifications(): an image will be classified with the label `new_object_detected` when a new object enter the scene. 
-
-CaptureAllFromCamera()
+- `GetDetections()`: returns the bounding boxes with the unique id as label and the object detection confidence as confidence.
+- `GetClassifications()`: returns the label `new_object_detected` for an image when a new object enter the scene. 
+- `CaptureAllFromCamera()`: returns the next image and detections or classifications all together, given a camera name.
 
 ## Installation 
 *in progress*
