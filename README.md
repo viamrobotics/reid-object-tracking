@@ -14,7 +14,6 @@ This module implements the following methods of the [vision service API](https:/
 - `GetClassifications()`: returns the label `new_object_detected` for an image when a new object enters the scene. 
 - `CaptureAllFromCamera()`: returns the next image and detections or classifications all together, given a camera name.
 
-GetClassifications(): an image will be classified with the label `new_object_detected` when a new object enters the scene. 
 
 ## Installation 
 *in progress*
