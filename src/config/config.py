@@ -13,6 +13,13 @@ class TrackerConfig:
         self.re_id_threshold = FloatAttribute(
             field_name="re_id_threshold", config=config, min_value=0, default_value=0.3
         )
+
+        self.min_track_persistence = IntAttribute(
+            field_name="min_track_persistence",
+            config=config,
+            min_value=0,
+            default_value=0,
+        )
         self.lambda_value = FloatAttribute(
             field_name="lambda_value",
             config=config,
@@ -32,7 +39,7 @@ class TrackerConfig:
             config=config,
             min_value=0,
             max_value=5,
-            default_value=0.6,
+            default_value=0.25,
         )
         self.feature_distance_metric = StringAttribute(
             field_name="feature_distance_metric",

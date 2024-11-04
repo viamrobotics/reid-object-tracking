@@ -4,7 +4,15 @@ from asyncio import Lock
 
 
 class Track:
-    def __init__(self, track_id, bbox, feature_vector, distance, label=None):
+    def __init__(
+        self,
+        track_id,
+        bbox,
+        feature_vector,
+        distance,
+        label=None,
+        is_candidate: bool = False,
+    ):
         """
         Initialize a track with a unique ID, bounding box, and re-id feature vector.
 
@@ -24,6 +32,9 @@ class Track:
         self.label = label
         self.label_lock = Lock()
         self.label_from_reid = None
+        self.persistence: int = 0
+        self.is_candidate: bool = is_candidate
+        self._is_detected: bool = True
 
     def __eq__(self, other) -> bool:
         """
@@ -36,6 +47,12 @@ class Track:
             and np.array_equal(self.bbox, other.bbox)
             and np.array_equal(self.feature_vector, other.feature_vector)
         )
+
+    def promote_track(self):
+        if not self.is_candidate:
+            raise ValueError("track has already been promoted")
+        else:
+            self.is_candidate = True
 
     def update(self, bbox, feature_vector, distance):
         """
@@ -62,6 +79,15 @@ class Track:
         """
         predicted_bbox = self.bbox + self.velocity
         return predicted_bbox
+
+    def change_track_id(self, new_track_id: str):
+        self.track_id = new_track_id
+
+    def increment_persistence(self):
+        self.persistence += 1
+
+    def get_persistence(self):
+        return self.persistence
 
     def increment_age(self):
         """
@@ -116,8 +142,12 @@ class Track:
         """
         return np.linalg.norm(self.feature_vector - feature_vector)
 
-    def get_detection(self) -> Detection:
-        label = self._get_label()
+    def get_detection(self, min_persistence=None) -> Detection:
+        if self.is_candidate and min_persistence is None:
+            return ValueError(
+                "Need to pass persistence in argument to get track candidate"
+            )
+        label = self._get_label(min_persistence)
         return Detection(
             x_min=self.bbox[0],
             y_min=self.bbox[1],
@@ -145,22 +175,42 @@ class Track:
     def has_label(self) -> bool:
         return self.label is not None
 
-    async def get_label(self):
-        """
-        Tries to return label first, then label_from_reid
-        and finally track_id
-        """
-        async with self.label_lock:
-            label = self.label
-            if label is not None:
-                return label
-        if self.label_from_reid is not None:
-            return self.label_from_reid
-        return self.track_id
-
-    def _get_label(self):
+    def _get_label(self, min_persistence=None):
+        if self.is_candidate:
+            return self.progress_bar(self.persistence, min_persistence)
         if self.label is not None:
             return self.label
         if self.label_from_reid is not None:
             return self.label_from_reid
         return self.track_id
+
+    def progress_bar(self, current_progress, min_persistence):
+        """
+        Generates an emoji-based progress bar.
+
+        :param current_progress: The current progress level (integer)
+        :param max_persistence: The maximum progress level
+        :return: A string with the emoji progress bar
+        """
+        progress_char = " *"  # Solid square
+        empty_char = " ."
+
+        # Ensure current_progress does not exceed max_persistence
+        if self.persistence > min_persistence:
+            current_progress = min_persistence
+
+        # Create the progress bar
+        progress_bar = progress_char * current_progress + empty_char * (
+            min_persistence - current_progress
+        )
+
+        return "tracking" + f"  [{progress_bar}]"
+
+    def set_is_detected(self):
+        self._is_detected = True
+
+    def unset_is_detected(self):
+        self._is_detected = False
+
+    def is_detected(self):
+        return self._is_detected
