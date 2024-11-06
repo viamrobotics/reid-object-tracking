@@ -67,6 +67,7 @@ class TracksManager:
                 512,
             ),
             distance=None,
+            is_candidate=False,
         )
 
     def get_tracks_on_disk(self):

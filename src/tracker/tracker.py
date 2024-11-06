@@ -1,8 +1,9 @@
 import asyncio
 import datetime
 import os
-from asyncio import Event, Lock, create_task, sleep
+from asyncio import Event, create_task, sleep
 from typing import Dict, List
+from copy import deepcopy
 
 import cv2
 import numpy as np
@@ -18,6 +19,7 @@ from src.tracker.encoder import FeatureEncoder
 from src.tracker.track import Track
 from src.tracker.tracks_manager import TracksManager
 from src.utils import decode_image, log_cost_matrix, log_tracks_info
+from viam.proto.service.vision import Detection
 
 LOGGER = getLogger(__name__)
 
@@ -42,8 +44,14 @@ class Tracker:
         self.encoder = FeatureEncoder(cfg.encoder_config)
 
         self.tracks: Dict[str, Track] = {}
+
+        self.track_candidates: List[Track] = []
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
         self.start_fresh: bool = cfg.tracker_config.start_fresh.value
+
+        self.minimum_track_persistance: int = (
+            cfg.tracker_config.min_track_persistence.value
+        )
 
         self.category_count: Dict[str, int] = {}
 
@@ -156,11 +164,16 @@ class Tracker:
         """
         Get the current detections.
         """
-        cur_tracks = {
-            track_id: self.tracks[track_id] for track_id in self.current_tracks_id
-        }
+        dets = []
 
-        return [track.get_detection() for track in cur_tracks.values()]
+        for track in self.tracks.values():
+            if track.is_detected():
+                dets.append(track.get_detection())
+
+        for track in self.track_candidates:
+            if track.is_detected():
+                dets.append(track.get_detection(self.minimum_track_persistance))
+        return dets
 
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
@@ -171,7 +184,7 @@ class Tracker:
 
         :param detections: List of Detection objects detected in the current frame.
         """
-
+        self.clear_detected_track()
         # Get new detections
         detections = self.detector.detect(img)
 
@@ -180,6 +193,7 @@ class Tracker:
         updated_tracks_ids = set()
         unmatched_detections = set(range(len(detections)))
         new_tracks_ids = set()
+        current_track_candidates = []
 
         if not detections:
             self.current_tracks_id = set()
@@ -193,53 +207,109 @@ class Tracker:
             return
 
         # Compute feature vectors for the current detections
-        feature_vectors = self.encoder.compute_features(img, detections)
+        features_vectors = self.encoder.compute_features(img, detections)
 
-        # Initialize cost matrix
-        cost_matrix = np.zeros((len(self.tracks), len(detections)))
-
-        # Calculate cost for each pair of track and detection
-        track_ids = list(self.tracks.keys())
-        for i, track_id in enumerate(track_ids):
-            track = self.tracks[track_id]
-            for j, detection in enumerate(detections):
-                iou_score = track.iou(detection.bbox)
-                feature_dist = self.encoder.compute_distance(
-                    track.feature_vector, feature_vectors[j]
-                )
-                # Cost function: lambda * feature distance + (1 - lambda) * (1 - IoU)
-                cost_matrix[i, j] = self.lambda_value * feature_dist + (
-                    1 - self.lambda_value
-                ) * (1 - iou_score)
         # Solve the linear assignment problem to find the best matching
-        row_indices, col_indices = linear_sum_assignment(cost_matrix)
+        row_indices, col_indices, cost_matrix = self.get_matching_tracks(
+            tracks=self.tracks, detections=detections, feature_vectors=features_vectors
+        )
         # Update matched tracks
         for row, col in zip(row_indices, col_indices):
             distance = cost_matrix[row, col]
             if (
                 distance < self.distance_threshold
             ):  # Threshold to determine if a match is valid
-                track_id = track_ids[row]
+                track_id = list(self.tracks.keys())[row]
+                track = self.tracks[track_id]
                 detection = detections[col]
                 self.tracks[track_id].update(
                     bbox=detection.bbox,
-                    feature_vector=feature_vectors[col],
+                    feature_vector=features_vectors[col],
                     distance=distance,
                 )
+                track.set_is_detected()
                 updated_tracks_ids.add(track_id)
                 unmatched_detections.discard(col)
 
-        self.increment_age_and_delete_tracks(updated_tracks_ids)
+        # Find match with track candidate
+        if len(unmatched_detections) > 0:
+            if len(self.track_candidates) < 1:
+                for detection_id in unmatched_detections:
+                    detection = detections[detection_id]
+                    feature_vector = features_vectors[detection_id]
 
-        # Create new tracks for unmatched detections
-        for detection_idx in unmatched_detections:
-            new_track_id = self.add_track(
-                detection=detections[detection_idx],
-                feature_vector=feature_vectors[detection_idx],
-            )
-            new_tracks_ids.add(new_track_id)
+                    self.add_track_candidate(
+                        detection=detection,
+                        feature_vector=feature_vector,
+                    )
+                    current_track_candidates.append(len(self.track_candidates) - 1)
+            else:
+                track_candidate_idx, unmatched_detection_idx, cost_matrix = (
+                    self.get_matching_track_candidates(
+                        detections=[detections[i] for i in unmatched_detections],
+                        features_vectors=features_vectors,
+                    )
+                )
+                promoted_track_candidates = []
+                for track_candidate_id, unmatched_detection_id in zip(
+                    track_candidate_idx, unmatched_detection_idx
+                ):
+                    distance = cost_matrix[track_candidate_id, unmatched_detection_id]
+                    detection = detections[unmatched_detection_id]
+                    matching_track_candidate = self.track_candidates[track_candidate_id]
+
+                    if distance < self.distance_threshold:
+                        matching_track_candidate.update(
+                            bbox=detection.bbox,
+                            feature_vector=features_vectors[unmatched_detection_id],
+                            distance=distance,
+                        )
+                        matching_track_candidate.increment_persistence()
+                        if (
+                            matching_track_candidate.get_persistence()
+                            > self.minimum_track_persistance
+                        ):
+                            promoted_track_candidates.append(track_candidate_id)
+                            new_track_id = self.promote_to_track(
+                                track_candidate_id,
+                                feature_vector=features_vectors[unmatched_detection_id],
+                            )
+                            new_tracks_ids.add(new_track_id)
+                            self.tracks[new_track_id].set_is_detected()
+                        else:
+                            matching_track_candidate.set_is_detected()
+
+                    else:
+                        self.add_track_candidate(
+                            detection=detection,
+                            feature_vector=features_vectors[unmatched_detection_id],
+                        )
+                for track_candidate_id in sorted(  # sort and reverse the iteration over the promoted track_candidates to not mess up the indexes
+                    promoted_track_candidates,
+                    reverse=True,
+                ):
+                    del self.track_candidates[track_candidate_id]
+
+                # delete track candidate that were not found again
+                # TODO: give track candidate multiple frame before being deleted
+                self.track_candidates = [
+                    track_candidate
+                    for track_candidate in self.track_candidates
+                    if track_candidate.is_detected()
+                ]
+
+        # # Create new tracks for unmatched detections
+        # for detection_idx in unmatched_detections:
+        #     new_track_id = self.add_track(
+        #         detection=detections[detection_idx],
+        #         feature_vector=features_vectors[detection_idx],
+        #     )
+        #     new_tracks_ids.add(new_track_id)
 
         self.current_tracks_id = updated_tracks_ids.union(new_tracks_ids)
+        self.current_track_candidates = current_track_candidates
+
+        self.increment_age_and_delete_tracks(updated_tracks_ids)
 
         # Try to identify tracks that got a new embedding
         self.identify_tracks(self.current_tracks_id)
@@ -295,7 +365,90 @@ class Tracker:
                 )
 
             # Save the image with the detections
-            cv2.imwrite(f"./results2/result_{self.count}.png", bgr_image)
+            cv2.imwrite(f"./results/result_{self.count}.png", bgr_image)
+
+    def get_matching_tracks(
+        self, tracks: Dict[str, Track], detections: List[Detection], feature_vectors
+    ):
+        # Initialize cost matrix
+        cost_matrix = np.zeros((len(tracks), len(detections)))
+
+        # Calculate cost for each pair of track and detection
+        track_ids = list(tracks.keys())
+        for i, track_id in enumerate(track_ids):
+            track = tracks[track_id]
+            for j, detection in enumerate(detections):
+                iou_score = track.iou(detection.bbox)
+                feature_dist = self.encoder.compute_distance(
+                    track.feature_vector, feature_vectors[j]
+                )
+                # Cost function: lambda * feature distance + (1 - lambda) * (1 - IoU)
+                cost_matrix[i, j] = self.lambda_value * feature_dist + (
+                    1 - self.lambda_value
+                ) * (1 - iou_score)
+        # Solve the linear assignment problem to find the best matching
+        row_indices, col_indices = linear_sum_assignment(cost_matrix)
+        return row_indices, col_indices, cost_matrix
+
+    def get_matching_track_candidates(self, detections: List, features_vectors):
+        """
+        Should pass the detections that are not matched with current tracks
+        """
+        # Initialize cost matrix
+        cost_matrix = np.zeros((len(self.track_candidates), len(detections)))
+
+        for i, track in enumerate(self.track_candidates):
+            for j, detection in enumerate(detections):
+                iou_score = track.iou(detection.bbox)
+                feature_dist = self.encoder.compute_distance(
+                    track.feature_vector, features_vectors[j]
+                )
+                # Cost function: lambda * feature distance + (1 - lambda) * (1 - IoU)
+                cost_matrix[i, j] = self.lambda_value * feature_dist + (
+                    1 - self.lambda_value
+                ) * (1 - iou_score)
+        # Solve the linear assignment problem to find the best matching
+        row_indices, col_indices = linear_sum_assignment(cost_matrix)
+        return row_indices, col_indices, cost_matrix
+
+    def add_track_candidate(self, detection, feature_vector):
+        new_track_candidate = Track(
+            track_id=detection.category,
+            bbox=detection.bbox,
+            feature_vector=feature_vector,
+            distance=0,
+            is_candidate=True,
+        )
+        new_track_candidate.set_is_detected()
+        self.track_candidates.append(new_track_candidate)
+
+    def promote_to_track(self, track_candidate_indice: int, feature_vector) -> str:
+        """
+        takes track indice and returns track_id
+        """
+        if len(self.track_candidates) <= track_candidate_indice:
+            return IndexError(
+                f"Can't find track candidate at indice {track_candidate_indice}"
+            )
+
+        track_candidate = deepcopy(self.track_candidates[track_candidate_indice])
+
+        track_candidate.is_candidate = False
+        track_id = self.generate_track_id(
+            track_candidate._get_label()
+        )  # for a track candidate, the label is the category
+        track_candidate.change_track_id(track_id)
+        self.tracks[track_id] = track_candidate
+
+        # Add new track_id to the track_table
+        self.track_ids_with_label[track_id] = [track_id]
+        return track_id
+
+    def clear_detected_track(self):
+        for track in self.tracks.values():
+            track.unset_is_detected()
+        for track in self.track_candidates:
+            track.unset_is_detected()
 
     def get_color_from_colormap(self, track_id):
         # Use the track_id to select a color from the colormap
@@ -334,7 +487,7 @@ class Tracker:
                 # Optionally remove old tracks
                 if self.tracks[track_id].age > self.max_age_track:
                     del self.tracks[track_id]
-                    # TODO : also dfelete from track_ids_with_label ?
+                    # TODO : also delete from track_ids_with_label ?
 
     def add_labeled_embedding(self, cmd: Dict):
         answer = {}
@@ -426,6 +579,8 @@ class Tracker:
         Args:
         track_ids: track ids of tracks to be identified
         """
+        if len(track_ids) < 1:
+            return
         for track_id in track_ids:
             track = self.tracks[track_id]
             if track.has_label():
