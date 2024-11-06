@@ -100,7 +100,6 @@ class FeatureEncoder:
         # features = self.extractor(processed_images)
 
         features = self.extractor(cropped_images)
-        # return features
         return [np.array(feature, dtype=np.float32) for feature in features]
 
     def compute_distance(self, feature_vector_1, feature_vector_2):

@@ -48,12 +48,6 @@ class Track:
             and np.array_equal(self.feature_vector, other.feature_vector)
         )
 
-    def promote_track(self):
-        if not self.is_candidate:
-            raise ValueError("track has already been promoted")
-        else:
-            self.is_candidate = True
-
     def update(self, bbox, feature_vector, distance):
         """
         Update the track with a new bounding box and feature vector.

@@ -210,7 +210,6 @@ class Tracker:
         features_vectors = self.encoder.compute_features(img, detections)
 
         # Solve the linear assignment problem to find the best matching
-        # row_indices, col_indices = linear_sum_assignment(cost_matrix)
         row_indices, col_indices, cost_matrix = self.get_matching_tracks(
             tracks=self.tracks, detections=detections, feature_vectors=features_vectors
         )
