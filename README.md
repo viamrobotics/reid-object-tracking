@@ -7,15 +7,13 @@ This is a [Viam module](https://docs.viam.com/extend/modular-resources/) providi
 
 ## Getting started
 
-To use this module, follow these instructions to [add a module from the Viam Registry](https://docs.viam.com/modular-resources/configure/#add-a-module-from-the-viam-registry) and select the `viam:vision:re-id-object-tracker` model from the [`re-id-object-tracker` module](https://app.viam.com/module/re-id-object-tracker).
-This module implements the following methods of the [vision service API](https://docs.viam.com/services/vision/#api).
+To use this module, follow these instructions to [add a module from the Viam Registry](https://docs.viam.com/registry/modular-resources/#configuration) and select the `viam:vision:re-id-object-tracker` model from the [`re-id-object-tracker` module](https://app.viam.com/module/re-id-object-tracker).
+This module implements the following methods of the [vision service API](https://docs.viam.com/services/vision/#api):
 
+- `GetDetections()`: returns the bounding boxes with the unique id as label and the object detection confidence as confidence.
+- `GetClassifications()`: returns the label `new_object_detected` for an image when a new object enters the scene. 
+- `CaptureAllFromCamera()`: returns the next image and detections or classifications all together, given a camera name.
 
-GetDetections(): returns the bounding boxes with the unique id as label and the object detection confidence as confidence.
-
-GetClassifications(): an image will be classified with the label `new_object_detected` when a new object enter the scene. 
-
-CaptureAllFromCamera()
 
 ## Installation 
 *in progress*
@@ -25,14 +23,12 @@ CaptureAllFromCamera()
 > [!NOTE]  
 > Before configuring your vision service, you must [create a robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot).
 
-Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/). Click on the **Services** subtab and click **Create service**. Select the `Vision` type, then select the `re-id-object-tracker` model. Enter a name for your service and click **Create**.
+Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [machine](https://docs.viam.com/fleet/machines/) in the [Viam app](https://app.viam.com/).
+[Add vision / re-id-object-tracker to your machine](https://docs.viam.com/configure/#components).
 
 ### Attributes description
 
 The following attributes are available to configure your `re-id-object-tracker` module:
-
-
-
 
 ### TrackerConfig
 
@@ -61,7 +57,6 @@ The following attributes are available to configure your `re-id-object-tracker` 
 | `feature_extractor_model` | string | Optional  |    `osnet_ain_x1_0`     | Name of the model used for feature extraction. Available options are `osnet_x0_25` and `osnet_ain_x1_0`. |
 | `feature_encoder_device`  | string | Optional  |         | Device on which the feature encoder will run. Options are `cpu` and `gpu`.                                        |
 
-
 ### TracksManagerConfig
 
 | Name                      | Type   | Inclusion    | Default | Description                                                                                     |
@@ -72,45 +67,52 @@ The following attributes are available to configure your `re-id-object-tracker` 
 
 ## `DoCommand()`
 
-In this section, we provide example of `DoCommand` calls with the [Viam Python SDK](https://python.viam.dev/index.html).
+In addition to the [vision service API](https://docs.viam.com/services/vision/#api), the `re-id-object-tracking` module supports some model-specific commands that allow you to add, delete, relabel and list people.
+You can invoke these commands by passing appropriately keyed JSON documents to the [`DoCommand()`](/appendix/apis/services/vision/#docommand) method using one of [Viam's SDKs](https://docs.viam.com/sdks/).
 
-### `relabel()`
-The object tracker generate by default a unique ID string in the format  `"<category>_N_YYYYMMDD_HHMMSS"`. The object tracking module provide a way to relabel this default id.
+For example:
 
-```python
-do_command_input = {
-        "relabel": {"person_N_YYYYMMDD_HHMMSS": "known person"},
-    }
-do_command_res = await vision_object_tracker.do_command(do_command_input)
+```json
+{
+  "add": {
+    "amanda": ["/path/to/amanda-pictures/dir"], 
+    "bob": ["/path/to/bob-pictures/dir"]
+  }
+}
 ```
 
-### `add()`
-
-The `add()` command enables the user to pass a path to a directory containing pictures of people to be matched against the tracked people. If the distance between the embedding associated with a tracked object and the embedding computed from the pictures in the directory is smaller than the config attribute `re_id_threshold`, the label associated to the track is replaced by the `re_id_label` passed in the DoCommand `add`. Please note that the object tracking module gives priority to a label "manually" added with the `relabel()` command over a labeling resulting from a matching against embeddings added through the `add()` command.
-
-```python
-do_command_input = {"add": {re_id_label: path_to_directory}}
-do_command_res = await vision_object_tracker.do_command(do_command_input)
+```json
+{
+  "delete": ["amanda","bob"]
+}
 ```
 
-
-### `delete()`
-
-`delete()` deletes embeddings added with the `add()` command.
-```python
-do_command_input = {
-        "delete": ["robin", "leon"]},
-    }
-do_command_res = await vision_object_tracker.do_command(do_command_input)
+```json
+{
+  "relabel": {
+    "person1_30122024": "amanda",
+    "person2_20112024": "bob"
+  }
+}
 ```
 
+```json
+{
+  "list": "true"
+}
+```
 
+| Key | Description |
+| ----- | --------- |
+| `add` | Add a new person or people to the authorized label list. Use a directory with pictures of the person from that day. Re-ID will not work with different clothes. |
+| `delete` | Delete a new person or people from the authorized label list by label. |
+| `relabel` | Relabel a person or people by ID. |
+| `list` | List known people's labels, IDs and whether they are authorized. |
 
+If the distance between the embedding associated with a tracked object and the embedding computed from the pictures in the directory is smaller than the config attribute `re_id_threshold`, the label associated to the track is replaced by the `re_id_label` passed in the DoCommand `add`.
+Please note that the object tracking module gives priority to a label "manually" added with the `relabel()` command over a labeling resulting from a matching against embeddings added through the `add()` command.
 
-
-
-
-
+For more information, see [`DoCommand()`](/appendix/apis/services/vision/#docommand).
 
 ## Supplementaries
 
