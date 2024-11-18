@@ -14,7 +14,7 @@ from viam.logging import getLogger
 from viam.media.video import CameraMimeType
 
 from src.config.config import ReIDObjetcTrackerConfig
-from src.tracker.detector import Detector
+from src.tracker.detector.detector import Detector, get_detector
 from src.tracker.encoder import FeatureEncoder
 from src.tracker.track import Track
 from src.tracker.tracks_manager import TracksManager
@@ -40,7 +40,7 @@ class Tracker:
         self.distance = cfg.tracker_config.feature_distance_metric.value
         self.sleep_period = 1 / (cfg.tracker_config.max_frequency.value)
 
-        self.detector = Detector(cfg.detector_config)
+        self.detector: Detector = get_detector(cfg.detector_config)
         self.encoder = FeatureEncoder(cfg.encoder_config)
 
         self.tracks: Dict[str, Track] = {}

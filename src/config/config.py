@@ -79,31 +79,30 @@ class DetectorConfig:
         self.model_name = StringAttribute(
             field_name="detector_model_name",
             config=config,
-            default_value="effDet0_int8",
-            allowlist=["effDet0_int8", "effDet0_fp32", "effDet2_fp32"],
+            default_value="fasterrcnn_mobilenet_v3_large_320_fpn",
+            allowlist=["fasterrcnn_mobilenet_v3_large_320_fpn"],
         )
         self.threshold = FloatAttribute(
             field_name="detection_threshold",
             config=config,
             min_value=0.0,
             max_value=1.0,
-            default_value=0.4,
+            default_value=0.9,
         )
         self.device = StringAttribute(
             field_name="detector_device",
             config=config,
             default_value="cpu",
-            allowlist=["cpu", "gpu"],
+            allowlist=["cpu", "cuda"],
         )
 
+        # TODO: add usage for torchvision
         self.max_results = IntAttribute(
             field_name="detection_max_detection_results",
             config=config,
             default_value=5,
             min_value=1,
         )
-
-        # TODO: add a filter for detection label and confidence here
 
 
 class FeatureEncoderConfig:

@@ -6,7 +6,7 @@ from scipy.spatial.distance import cityblock, cosine, euclidean
 from torchreid.utils import FeatureExtractor
 
 from src.config.config import FeatureEncoderConfig
-from src.tracker.detector import Detection
+from src.tracker.detector.mediapipe import Detection
 from src.utils import resource_path
 
 
@@ -85,19 +85,6 @@ class FeatureEncoder:
         cropped_images = [
             image[d.bbox[1] : d.bbox[3], d.bbox[0] : d.bbox[2]] for d in detections
         ]
-
-        # TODO: need to decide if this should be here
-
-        # # Preprocess cropped images for the feature extractor
-        # processed_images = [
-        #     cv2.cvtColor(
-        #         cv2.resize(crop, (128, 256)), cv2.COLOR_BGR2RGB
-        #     )  #  WE WILL SEE IF NEEDED
-        #     for crop in cropped_images
-        # ]
-
-        # # Extract features
-        # features = self.extractor(processed_images)
 
         features = self.extractor(cropped_images)
         return [np.array(feature, dtype=np.float32) for feature in features]
