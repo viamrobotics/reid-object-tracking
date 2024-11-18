@@ -6,7 +6,7 @@ from scipy.spatial.distance import cityblock, cosine, euclidean
 from torchreid.utils import FeatureExtractor
 
 from src.config.config import FeatureEncoderConfig
-from src.tracker.detector.mediapipe import Detection
+from src.tracker.detector.detection import Detection
 from src.utils import resource_path
 
 
