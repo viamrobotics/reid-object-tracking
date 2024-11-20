@@ -74,12 +74,9 @@ def log_tracks_info(updated_tracks_ids, new_tracks_ids, lost_tracks_ids):
         ["Lost Tracks", ", ".join(lost_tracks_ids)],
     ]
 
-    # Formatting the table using tabulate
     table_message = tabulate(
         table_data, headers=["Category", "Track IDs"], tablefmt="grid"
     )
-
-    # Log the table
     LOGGER.info("\n\n" + table_message + "\n\n")
 
 
