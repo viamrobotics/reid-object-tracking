@@ -81,21 +81,15 @@ def log_tracks_info(updated_tracks_ids, new_tracks_ids, lost_tracks_ids):
 
 
 def log_cost_matrix(cost_matrix, track_ids, iteration_number):
-    # track_ids = list(self.tracks.keys())
-
-    # Create the detection headers
     detection_headers = [f"detection_{i+1}" for i in range(cost_matrix.shape[1])]
 
-    # Creating the table data
-    table_data = []
-    for track_id, row in zip(track_ids, cost_matrix):
-        table_data.append([track_id] + list(row))
+    table_data = [[track_id] + list(row)
+                  for track_id, row in zip(track_ids, cost_matrix)]
 
-    # Formatting the table using tabulate
     table_message = tabulate(
         table_data, headers=["Track ID"] + detection_headers, tablefmt="grid"
     )
-    # Configure the logging to write to a file
+
     logger = logging.getLogger("TrackDetectionLogger")
     logger.info(f"Iteration number: {iteration_number}")
     logger.info(table_message + "\n\n")
