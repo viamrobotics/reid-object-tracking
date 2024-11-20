@@ -47,8 +47,8 @@ class ReIDObjectTracker(Vision, Reconfigurable):
         return service
 
     # Validates JSON Configuration
-    @classmethod
-    def validate_config(cls, config: ServiceConfig) -> Sequence[str]:
+    @staticmethod
+    def validate_config(config: ServiceConfig) -> Sequence[str]:
         """Validate config and returns a list of dependencies."""
         camera_name = config.attributes.fields["camera_name"].string_value
         _ = ReIDObjectTrackerConfig(config)
