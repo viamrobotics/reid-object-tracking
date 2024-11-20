@@ -143,18 +143,26 @@ class Tracker:
     def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
         answer = dict_old_label_new_label
         for old_label, new_label in dict_old_label_new_label.items():
-            if old_label not in self.track_ids_with_label.keys():
+            if old_label not in self.track_ids_with_label:
                 answer[old_label] = (
                     f"DoCommand relabelling error: couldn't find tracks with the label : {old_label}"
                 )
                 continue
             track_ids_with_old_label = self.track_ids_with_label.get(old_label)
             for track_id in track_ids_with_old_label:
-                self.tracks[track_id].relabel(new_label)
-                if new_label in self.track_ids_with_label.keys():
+                # TODO: there is a bug in which sometimes self.track_ids_with_label can contain
+                # track IDs that are not present in self.tracks. Figure out how that happens and
+                # stop it, but in the meantime, don't crash.
+                if track_id in self.tracks:
+                    self.tracks[track_id].relabel(new_label)
+                else:
+                    LOGGER.warning(f"Track ID '{track_id}' has label but doesn't exist! Ignoring.")
+
+                if new_label in self.track_ids_with_label:
                     self.track_ids_with_label[new_label].append(track_id)
                 else:
                     self.track_ids_with_label[new_label] = [track_id]
+
             del self.track_ids_with_label[old_label]
             answer[old_label] = f"success: changed label to '{new_label}'"
         self.tracks_manager.write_track_ids_with_label_on_db(self.track_ids_with_label)
