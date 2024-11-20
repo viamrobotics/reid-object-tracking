@@ -150,11 +150,19 @@ class Tracker:
                 continue
             track_ids_with_old_label = self.track_ids_with_label.get(old_label)
             for track_id in track_ids_with_old_label:
-                self.tracks[track_id].relabel(new_label)
+                # TODO: there is a bug in which sometimes self.track_ids_with_label can contain
+                # track IDs that are not present in self.tracks. Figure out how that happens and
+                # stop it, but in the meantime, don't crash.
+                if track_id in self.tracks:
+                    self.tracks[track_id].relabel(new_label)
+                else:
+                    LOGGER.warning(f"Track ID '{track_id}' has label but doesn't exist! Ignoring.")
+
                 if new_label in self.track_ids_with_label:
                     self.track_ids_with_label[new_label].append(track_id)
                 else:
                     self.track_ids_with_label[new_label] = [track_id]
+
             del self.track_ids_with_label[old_label]
             answer[old_label] = f"success: changed label to '{new_label}'"
         self.tracks_manager.write_track_ids_with_label_on_db(self.track_ids_with_label)
