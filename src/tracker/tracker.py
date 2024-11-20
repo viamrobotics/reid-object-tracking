@@ -143,7 +143,7 @@ class Tracker:
     def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
         answer = dict_old_label_new_label
         for old_label, new_label in dict_old_label_new_label.items():
-            if old_label not in self.track_ids_with_label.keys():
+            if old_label not in self.track_ids_with_label:
                 answer[old_label] = (
                     f"DoCommand relabelling error: couldn't find tracks with the label : {old_label}"
                 )
@@ -151,7 +151,7 @@ class Tracker:
             track_ids_with_old_label = self.track_ids_with_label.get(old_label)
             for track_id in track_ids_with_old_label:
                 self.tracks[track_id].relabel(new_label)
-                if new_label in self.track_ids_with_label.keys():
+                if new_label in self.track_ids_with_label:
                     self.track_ids_with_label[new_label].append(track_id)
                 else:
                     self.track_ids_with_label[new_label] = [track_id]
