@@ -40,14 +40,11 @@ def decode_image(image: Union[Image.Image, ViamImage]) -> np.ndarray:
 
             raise ValueError(f"Unsupported image type: {image.mime_type}.")
 
-        im = Image.open(BytesIO(image.data), formats=LIBRARY_SUPPORTED_FORMATS).convert(
-            "RGB"
-        )  # convert in RGB png openened in RGBA
-        return np.array(im)
+        image = Image.open(BytesIO(image.data), formats=LIBRARY_SUPPORTED_FORMATS)
 
+    # No matter what it was originally, `image` now has type Image.Image.
     res = image.convert("RGB")
-    rgb = np.array(res)
-    return rgb
+    return np.array(res)
 
 
 def resource_path(relative_path):
