@@ -59,12 +59,11 @@ def resource_path(relative_path):
     """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = os.path.join(sys._MEIPASS, "src", "models")  # pylint: disable=duplicate-code,protected-access,no-member
-
+        base_path = sys._MEIPASS  # pylint: disable=protected-access,no-member
     except Exception:  # pylint: disable=broad-exception-caught
-        base_path = os.path.abspath(os.path.join("src", "models"))
+        base_path = os.path.abspath(".")
 
-    return os.path.join(base_path, relative_path)
+    return os.path.join(base_path, "src", "models", relative_path)
 
 
 def log_tracks_info(updated_tracks_ids, new_tracks_ids, lost_tracks_ids):
