@@ -106,14 +106,6 @@ class OSNetFeatureEncoder(FeatureEncoder):
         pixel_std = [0.229, 0.224, 0.225]
 
         def gpu_compatible_transforms(tensor: torch.Tensor):
-            # Resize using F.interpolate
-            # tensor = F.interpolate(
-            #     tensor,
-            #     size=image_size,
-            #     mode="bilinear",
-            #     align_corners=False,
-            # )
-            # Normalize
             normalize = T.Normalize(mean=pixel_mean, std=pixel_std)
             return normalize(tensor)
 
@@ -170,37 +162,6 @@ class OSNetFeatureEncoder(FeatureEncoder):
         with torch.no_grad():
             res = self.model(cropped_batch)
         return res
-
-    # def compute_features(
-    #     self, img: ImageObject, detections: List[Detection]
-    # ) -> List[np.ndarray]:
-    #     device = img.float32_tensor.device
-
-    #     # Stack all bounding boxes into a tensor (x1, y1, x2, y2)
-    #     bboxes = torch.tensor(
-    #         [[d.bbox[0], d.bbox[1], d.bbox[2], d.bbox[3]] for d in detections],
-    #         device=device,
-    #     )
-
-    #     # Crop the image for each bounding box
-    #     cropped_images = []
-    #     for bbox in bboxes:
-    #         x1, y1, x2, y2 = bbox
-    #         cropped_image = img.float32_tensor[
-    #             :, y1:y2, x1:x2
-    #         ]  # Assuming image is in CxHxW format
-    #         cropped_images.append(cropped_image)
-
-    #     # Stack all cropped images into a batch
-    #     cropped_batch = torch.stack(
-    #         cropped_images, dim=0
-    #     )  # Resulting shape: (B, C, H, W)
-
-    #     cropped_batch = self.preprocess(cropped_batch)
-
-    #     with torch.no_grad():
-    #         res = self.model(cropped_batch)
-    #     return res
 
     def compute_distance(self, feature_vector_1, feature_vector_2):
         """
