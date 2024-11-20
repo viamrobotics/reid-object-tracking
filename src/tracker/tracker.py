@@ -15,11 +15,13 @@ from viam.media.video import CameraMimeType
 
 from src.config.config import ReIDObjetcTrackerConfig
 from src.tracker.detector.detector import Detector, get_detector
-from src.tracker.encoder import FeatureEncoder
+from src.tracker.encoder.feature_encoder import FeatureEncoder, get_encoder
 from src.tracker.track import Track
 from src.tracker.tracks_manager import TracksManager
 from src.utils import decode_image, log_cost_matrix, log_tracks_info
 from viam.proto.service.vision import Detection
+from src.image.image import ImageObject
+import torch
 
 LOGGER = getLogger(__name__)
 
@@ -40,8 +42,10 @@ class Tracker:
         self.distance = cfg.tracker_config.feature_distance_metric.value
         self.sleep_period = 1 / (cfg.tracker_config.max_frequency.value)
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.detector: Detector = get_detector(cfg.detector_config)
-        self.encoder = FeatureEncoder(cfg.encoder_config)
+        self.encoder = get_encoder(cfg.encoder_config)
 
         self.tracks: Dict[str, Track] = {}
 
@@ -138,7 +142,7 @@ class Tracker:
             viam_img = await self.camera.get_image(mime_type=CameraMimeType.JPEG)
         except:
             return None
-        return decode_image(viam_img)
+        return ImageObject(viam_img, self.device)
 
     def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
         answer = dict_old_label_new_label
@@ -178,7 +182,7 @@ class Tracker:
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
 
-    def update(self, img, visualize: bool = False):
+    def update(self, img: ImageObject, visualize: bool = False):
         """
         Update the tracker with new detections.
 

@@ -5,16 +5,12 @@ import torch
 import os
 from typing import List, Dict
 
-import cv2
-import mediapipe as mp
-import numpy as np
-from mediapipe.tasks.python import vision
 
 from src.config.config import DetectorConfig
 from src.utils import resource_path
 from src.tracker.detector.detection import Detection
 from src.tracker.detector.detector import Detector
-
+from src.image.image import ImageObject
 from torchvision.models.detection import (
     FasterRCNN_MobileNet_V3_Large_320_FPN_Weights,
 )
@@ -23,7 +19,7 @@ from torchvision.models.detection import (
 class TorchvisionDetector(Detector):
     def __init__(self, cfg: DetectorConfig):
         super().__init__(cfg)
-        weights = FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT
+        weights = FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.COCO_V1
         self.categories = weights.meta["categories"]
 
         self.model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn(
@@ -35,17 +31,13 @@ class TorchvisionDetector(Detector):
         self.model.eval()
         self.transform = weights.transforms()
 
-    def detect(self, image: np.ndarray, visualize: bool = False) -> List[Detection]:
-        image_tensor = (
-            torch.from_numpy(image).permute(2, 0, 1).contiguous()
-        )  # permute to get [C, H, W]
-        print(image_tensor.shape)
-        image_tensor.to(self.device)
-        preprocessed_image = self.transform(image_tensor)
+    def detect(self, image: ImageObject, visualize: bool = False) -> List[Detection]:
+        # image_tensor = (
+        #     torch.from_numpy(image).permute(2, 0, 1).contiguous()
+        # )
+        preprocessed_image = self.transform(image.uint8_tensor)
         batch = [preprocessed_image]
-        # TODO: add transform here
 
-        # detections = []
         with torch.no_grad():
             detections = self.model(batch)[0]
 
