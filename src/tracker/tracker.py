@@ -552,12 +552,7 @@ class Tracker:
 
     @staticmethod
     def generate_person_data(label, id):
-        if id == label:
-            renamed = False
-        else:
-            renamed = True
-
-        return {"label": label, "id": id, "renamed": renamed}
+        return {"label": label, "id": id, "renamed": (id != label)}
 
     def generate_track_id(self, category):
         """
