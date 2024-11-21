@@ -553,11 +553,11 @@ class Tracker:
     @staticmethod
     def generate_person_data(label, id):
         if id == label:
-            authorized = False
+            renamed = False
         else:
-            authorized = True
+            renamed = True
 
-        return {"label": label, "id": id, "authorized": authorized}
+        return {"label": label, "id": id, "renamed": renamed}
 
     def generate_track_id(self, category):
         """
