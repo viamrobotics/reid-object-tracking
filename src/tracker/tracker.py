@@ -16,9 +16,10 @@ from viam.media.video import CameraMimeType
 from src.config.config import ReIDObjetcTrackerConfig
 from src.tracker.detector.detector import Detector, get_detector
 from src.tracker.encoder.feature_encoder import FeatureEncoder, get_encoder
+from src.tracker.face_id.identifier import FaceIdentifier
 from src.tracker.track import Track
 from src.tracker.tracks_manager import TracksManager
-from src.utils import decode_image, log_cost_matrix, log_tracks_info
+from src.utils import log_cost_matrix, log_tracks_info
 from viam.proto.service.vision import Detection
 from src.image.image import ImageObject
 import torch
@@ -45,7 +46,8 @@ class Tracker:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.detector: Detector = get_detector(cfg.detector_config)
-        self.encoder = get_encoder(cfg.encoder_config)
+        self.encoder: FeatureEncoder = get_encoder(cfg.encoder_config)
+        self.face_identifier: FaceIdentifier = FaceIdentifier(cfg.face_id_config)
 
         self.tracks: Dict[str, Track] = {}
 
@@ -317,6 +319,7 @@ class Tracker:
 
         # Try to identify tracks that got a new embedding
         self.identify_tracks(self.current_tracks_id)
+        self.face_identify_tracks(img, self.current_tracks_id)
 
         # Set the new_object_event if new tracks were found
         if len(new_tracks_ids) > 0:
@@ -625,6 +628,18 @@ class Tracker:
                         break
                 if found_match:
                     break
+
+    def face_identify_tracks(self, img: ImageObject, track_ids: List[str]):
+        if len(track_ids) < 1:
+            return
+        for track_id in track_ids:
+            track = self.tracks[track_id]
+            new_face_id_label, new_face_id_conf = self.face_identifier.get_match(
+                img, track
+            )
+            if new_face_id_label is not None:
+                track.label_from_faceid = new_face_id_label
+                track.conf_from_faceid = new_face_id_conf
 
 
 class NewObjectNotifier:

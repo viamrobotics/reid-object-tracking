@@ -30,8 +30,11 @@ class Track:
         self.distance = distance
 
         self.label = label
-        self.label_lock = Lock()
         self.label_from_reid = None
+
+        self.label_from_faceid = None
+        self.conf_from_faceid = None
+
         self.persistence: int = 0
         self.is_candidate: bool = is_candidate
         self._is_detected: bool = True
@@ -166,6 +169,9 @@ class Track:
     def relabel_reid_label(self, label: str):
         self.label_from_reid = label
 
+    def relabel_faceid_label(self, label: str):
+        self.label_from_faceid = label
+
     def has_label(self) -> bool:
         return self.label is not None
 
@@ -174,6 +180,8 @@ class Track:
             return self.progress_bar(self.persistence, min_persistence)
         if self.label is not None:
             return self.label
+        if self.label_from_faceid is not None:
+            return self.label_from_faceid
         if self.label_from_reid is not None:
             return self.label_from_reid
         return self.track_id

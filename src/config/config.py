@@ -105,6 +105,58 @@ class DetectorConfig:
         )
 
 
+class FaceIdConfig:
+    def __init__(self, config: ServiceConfig):
+        self.path_to_known_faces = StringAttribute(
+            field_name="path_to_known_faces",
+            config=config,
+            default_value=None,
+        )
+
+        self.device = StringAttribute(
+            field_name="face_detector_device",
+            config=config,
+            default_value="cpu",
+            allowlist=["cpu", "cuda"],
+        )
+
+        self.detector = StringAttribute(
+            field_name="face_detector_model",
+            config=config,
+            default_value="ultraface_version-RFB-320-int8",
+        )
+
+        self.detector_threshold = FloatAttribute(
+            field_name="face_detection_threshold",
+            config=config,
+            min_value=0.0,
+            max_value=1.0,
+            default_value=0.9,
+        )
+
+        self.feature_extractor = StringAttribute(
+            field_name="face_feature_extractor_model",
+            config=config,
+            default_value="facenet",
+        )
+
+        self.cosine_id_threshold = FloatAttribute(
+            field_name="cosine_id_threshold",
+            config=config,
+            min_value=0.0,
+            max_value=1.0,
+            default_value=0.1,
+        )
+
+        self.euclidean_id_threshold = FloatAttribute(
+            field_name="euclidean_id_threshold",
+            config=config,
+            min_value=0.0,
+            max_value=1.0,
+            default_value=0.3,
+        )
+
+
 class FeatureEncoderConfig:
     def __init__(self, config: ServiceConfig):
         self.feature_extractor_name = StringAttribute(
@@ -143,3 +195,4 @@ class ReIDObjetcTrackerConfig:
         self.detector_config = DetectorConfig(config)
         self.encoder_config = FeatureEncoderConfig(config)
         self.tracks_manager_config = TracksManagerConfig(config)
+        self.face_id_config = FaceIdConfig(config)
