@@ -145,7 +145,7 @@ class FaceIdConfig:
             config=config,
             min_value=0.0,
             max_value=1.0,
-            default_value=0.1,
+            default_value=0.4,
         )
 
         self.euclidean_id_threshold = FloatAttribute(
@@ -153,7 +153,7 @@ class FaceIdConfig:
             config=config,
             min_value=0.0,
             max_value=1.0,
-            default_value=0.3,
+            default_value=1,
         )
 
 

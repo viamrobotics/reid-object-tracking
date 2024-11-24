@@ -59,25 +59,15 @@ class FaceIdentifier:
     def __init__(
         self,
         cfg: FaceIdConfig,
-        # detector_backend: str,
-        # extraction_threshold: float,
-        # grayscale: bool,
-        # enforce_detection: bool,
-        # align: bool,
-        # model_name: str,
-        # normalization: str,
-        # picture_directory: str,
-        # distance_metric_name: str,
-        # identification_threshold: float,
-        # sigmoid_steepness: float,
-        # debug: bool = False,
+        debug: bool = False,
     ):
+        self.debug = debug
         self.detector: FaceDetector = FaceDetector(cfg)
         self.feature_extractor: FaceFeaturesExtractor = FaceFeaturesExtractor(cfg)
         self.cfg = cfg
         self.known_embeddings = {}
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.compute_known_embeddings()
-        # self.model_name = cfg.detector.value
 
     def get_match(self, img: ImageObject, track: Track) -> Tuple[str, float]:
         """
@@ -145,12 +135,13 @@ class FaceIdentifier:
                         torch.from_numpy(img_array).permute(2, 0, 1).contiguous()
                     )
                     float32_tensor = uint8_tensor.to(dtype=torch.float32)
+
+                    float32_tensor = float32_tensor.to(self.device)
                     face = self.detector.extract_face(float32_tensor)
-                    save_tensor(face, "qui.jpeg")
+                    if self.debug:
+                        save_tensor(face, f"{directory}.jpeg")
                     # TODO: check if there is only one face here
                     embed = self.feature_extractor.get_embedding(face)
-                    # for face, _, _ in faces:
-                    #     embed = self.feature_extractor.get_embedding(face)
                     embeddings.append(embed)
                 else:
                     LOGGER.warning(

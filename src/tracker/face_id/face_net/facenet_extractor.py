@@ -4,18 +4,12 @@ from src.config.config import FaceIdConfig
 import onnxruntime as ort
 import os
 from src.utils import resource_path
-from src.tracker.utils import save_tensor
 from typing import Dict, Tuple
 from src.tracker.utils import (
-    save_tensor,
     resize_for_padding,
     pad_image_to_target_size,
-    padded_to_original_coordinates,
-    get_cropped_tensor,
 )
-from scipy.spatial.distance import cityblock, cosine, euclidean
 from src.tracker.face_id.face_net.inception_resnet_v1 import InceptionResnetV1
-import torchvision.transforms.functional as F
 
 
 class EncoderModelConfig:
@@ -60,14 +54,13 @@ class FaceFeaturesExtractor:
         self.model_config = ENCODERS_CONFIG.get(cfg.feature_extractor.value)
         model_path = self.model_config.get_model_path()
         self.input_shape = self.model_config.input_shape
-        self.face_recognizer = InceptionResnetV1(model_path=model_path).eval()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        face_recognizer = InceptionResnetV1(model_path=model_path).eval()
+        self.face_recognizer = face_recognizer.to(self.device)
         self.face_recognizer.requires_grad_(False)
 
         def transform(face: torch.Tensor):
-            # face = F.normalize(
-            #     face, mean=self.model_config.mean, std=self.model_config.std
-            # )
-            return face
+            return (face - 127.5) / 128.0
 
         self.transform = transform
         # self.input_size = self.model_config.input_size
@@ -76,30 +69,29 @@ class FaceFeaturesExtractor:
             providers.append("CUDAExecutionProvider")
 
     def get_embedding(self, face: torch.Tensor) -> torch.Tensor:
-        resized_image, new_height, new_width, target_height, target_width = (
-            resize_for_padding(face, self.input_shape)
-        )
+        resized_image, _, _, _, _ = resize_for_padding(face, self.input_shape)
         padded_image = pad_image_to_target_size(resized_image, self.input_shape)
-        save_tensor(padded_image, "resized_face_image.png")
         torch_tensor = self.transform(padded_image)  # normalize
-        save_tensor(torch_tensor, "check.png")
         embed = self.face_recognizer(torch_tensor)
         return embed[0]
 
     def compute_distance(self, feature_vector_1, feature_vector_2, metric="cosine"):
         """
-        Compute pairwise distances (Euclidean) between feature vectors.
+        Compute pairwise distances between feature vectors using PyTorch.
 
-        :param features: A list of feature vectors.
-        :return: A dictionary with pairwise distances between the features.
+        :param feature_vector_1: First feature vector (PyTorch tensor).
+        :param feature_vector_2: Second feature vector (PyTorch tensor).
+        :param metric: The distance metric to use ('euclidean', 'cosine', 'manhattan').
+        :return: Computed distance.
         """
-
         if metric == "euclidean":
-            distance = euclidean(feature_vector_1, feature_vector_2)
+            distance = torch.norm(feature_vector_1 - feature_vector_2, p=2)
         elif metric == "cosine":
-            distance = cosine(feature_vector_1, feature_vector_2)
+            distance = 1 - torch.nn.functional.cosine_similarity(
+                feature_vector_1.unsqueeze(0), feature_vector_2.unsqueeze(0)
+            )
         elif metric == "manhattan":
-            distance = cityblock(feature_vector_1, feature_vector_2)
+            distance = torch.sum(torch.abs(feature_vector_1 - feature_vector_2))
         else:
-            raise ValueError(f"Unsupported metric '{metric }'")
+            raise ValueError(f"Unsupported metric '{metric}'")
         return distance

@@ -5,7 +5,8 @@ import torch.nn.functional as F
 
 
 def save_tensor(tensor: torch.Tensor, path):
-    tensor = tensor.cpu()
+    if tensor.is_cuda:
+        tensor = tensor.cpu()
     if tensor.dim() == 4:
         tensor = tensor[0]
     if tensor.dtype != torch.uint8:

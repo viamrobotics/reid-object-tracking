@@ -5,7 +5,6 @@ from asyncio import Event, create_task, sleep
 from typing import Dict, List
 from copy import deepcopy
 
-import cv2
 import numpy as np
 from PIL import Image
 from scipy.optimize import linear_sum_assignment
@@ -75,10 +74,6 @@ class Tracker:
         self.stop_event = Event()
 
         self.debug = debug
-        self.color_map = {}
-        self.colormap = cv2.applyColorMap(
-            np.arange(256, dtype=np.uint8).reshape(1, -1), cv2.COLORMAP_COOL
-        )[0]
         self.count = 0
 
         self.start_background_loop = cfg.tracker_config._start_background_loop
@@ -184,7 +179,10 @@ class Tracker:
     async def is_new_object_detected(self):
         return self.new_object_event.is_set()
 
-    def update(self, img: ImageObject, visualize: bool = False):
+    def update(
+        self,
+        img: ImageObject,
+    ):
         """
         Update the tracker with new detections.
 
@@ -304,14 +302,6 @@ class Tracker:
                     if track_candidate.is_detected()
                 ]
 
-        # # Create new tracks for unmatched detections
-        # for detection_idx in unmatched_detections:
-        #     new_track_id = self.add_track(
-        #         detection=detections[detection_idx],
-        #         feature_vector=features_vectors[detection_idx],
-        #     )
-        #     new_tracks_ids.add(new_track_id)
-
         self.current_tracks_id = updated_tracks_ids.union(new_tracks_ids)
         self.current_track_candidates = current_track_candidates
 
@@ -344,35 +334,6 @@ class Tracker:
                 track_ids=list(self.tracks.keys()),
                 iteration_number=self.count,
             )
-
-        if visualize:
-            bgr_image = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-
-            for track_id in self.current_tracks_id:
-                track = self.tracks[track_id]
-                x1, y1, x2, y2 = track.bbox
-
-                if track_id not in self.color_map:
-                    self.color_map[track_id] = self.get_color_from_colormap(track_id)
-
-                color = self.color_map[track_id]
-
-                cv2.rectangle(
-                    bgr_image, (int(x1), int(y1)), (int(x2), int(y2)), color, 2
-                )
-                # Put the score on the top-left corner of the bounding box
-                cv2.putText(
-                    bgr_image,
-                    f"{track_id}",
-                    (int(x1), int(y1) - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.75,
-                    color,
-                    2,
-                )
-
-            # Save the image with the detections
-            cv2.imwrite(f"./results/result_{self.count}.png", bgr_image)
 
     def get_matching_tracks(
         self, tracks: Dict[str, Track], detections: List[Detection], feature_vectors
@@ -456,14 +417,6 @@ class Tracker:
             track.unset_is_detected()
         for track in self.track_candidates:
             track.unset_is_detected()
-
-    def get_color_from_colormap(self, track_id):
-        # Use the track_id to select a color from the colormap
-        # Track_id modulo 256 to ensure it's within the range of the colormap
-        track_id_int = hash(track_id) % 256
-
-        # Use the hashed track_id to select a color from the colormap
-        return tuple(int(c) for c in self.colormap[track_id_int])
 
     def add_track(self, detection, feature_vector, distance=0):
         """

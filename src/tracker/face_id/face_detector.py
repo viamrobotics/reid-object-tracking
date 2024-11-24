@@ -62,8 +62,12 @@ class FaceDetector:
         model_path = self.model_config.get_model_path()
         self.input_size = self.model_config.input_size
         providers = ["CPUExecutionProvider"]
+        # self.device = torch.device()
         if torch.cuda.is_available():
+            self.device_type = "cuda"
             providers.append("CUDAExecutionProvider")
+        else:
+            self.device_type = "cpu"
         self.session = ort.InferenceSession(model_path, providers=providers)
         self.io_binding = self.session.io_binding()
         self.input_name = self.session.get_inputs()[0].name
@@ -72,19 +76,13 @@ class FaceDetector:
         ].name  # Assuming this is confidences
         self.box_output_name = self.session.get_outputs()[1].name
         self.threshold = cfg.detector_threshold.value
-        self.debug = True
+        self.debug = False
         self.margin = 0
-
-    def get_cropped_image_of_person(self) -> torch.Tensor:
-        pass
 
     def extract_face_from_track(
         self, image_object: ImageObject, track: Track
     ) -> torch.Tensor:
         image_height, image_width = image_object.float32_tensor.shape[1:]
-        # Crop ImageObject around the person bbox
-        # cropped_image = image_object.float32_tensor
-
         x1, y1, x2, y2 = map(int, track.bbox)  # Ensure integer coordinates
         x1, y1 = max(0, x1), max(0, y1)  # Clip to image dimensions
         x2, y2 = min(image_width, x2), min(image_height, y2)
@@ -102,22 +100,22 @@ class FaceDetector:
         resized_image, new_height, new_width, target_height, target_width = (
             resize_for_padding(input, self.input_size)
         )
-        resized_image = pad_image_to_target_size(resized_image, self.input_size)
-        padded_image = resized_image
+        padded_image = pad_image_to_target_size(resized_image, self.input_size)
         input_height, input_width = padded_image.shape[2:]
-        save_tensor(padded_image, "resized_image.png")
-        resized_image = resized_image - 127
+        if self.debug:
+            save_tensor(padded_image, "resized_image.png")
+        padded_image = padded_image - 127
 
         # Divide every pixel value by 128
-        resized_image = resized_image / 128
+        torch_tensor = padded_image / 128
 
-        torch_tensor = resized_image.contiguous()
+        # Ensure contiguous
+        torch_tensor.contiguous()
 
-        device_type = "cuda" if torch.cuda.is_available() else "cpu"
         # Bind the input using data_ptr
         self.io_binding.bind_input(
             name=self.input_name,
-            device_type=device_type,
+            device_type=self.device_type,
             # device_id=torch_tensor.get_device(),
             device_id=0,  # GPU ID
             element_type=np.float32,  # Data type
@@ -136,7 +134,7 @@ class FaceDetector:
         # Fetch outputs
         confidences = self.io_binding.copy_outputs_to_cpu()[0]
         boxes = self.io_binding.copy_outputs_to_cpu()[1]
-        boxes, labels, probs = predict(
+        boxes, _, _ = predict(
             input_width, input_height, confidences, boxes, self.threshold
         )
 
@@ -151,7 +149,6 @@ class FaceDetector:
             x2_f, y2_f, input.shape[1:], (new_height, new_width), self.input_size
         )
 
-        # face_tensor = input[:, original_y1:original_y2, original_x1:original_x2]
         face_tensor = get_cropped_tensor(
             input, original_y1, original_y2, original_x1, original_x2, self.margin
         )
