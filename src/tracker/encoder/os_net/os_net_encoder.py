@@ -88,15 +88,15 @@ class OSNetFeatureEncoder(FeatureEncoder):
 
         model_name = "osnet_ain_x1_0"  # cfg.feature_extractor_name.value
         if model_name == "osnet_ain_x1_0":
-            self.model = osnet_ain_x1_0(
+            model = osnet_ain_x1_0(
                 num_classes=1000, loss="softmax", pretrained=False, use_gpu=use_gpu
             )
-            self.model.eval()
+            model.eval()
             model_path = resource_path(
                 os.path.join(OSNET_REPO, "osnet_ain_ms_d_c.pth.tar")
             )
-            load_pretrained_weights(self.model, model_path)
-            self.model.to(self.device)
+            load_pretrained_weights(model, model_path)
+            self.model = model.to(self.device)
         else:
             raise ValueError("only osnet ain now")
 
