@@ -3,6 +3,7 @@ import numpy as np
 from typing import List
 from src.config.config import FeatureEncoderConfig
 from src.tracker.detector.detection import Detection
+import torch
 
 
 class FeatureEncoder(ABC):
@@ -20,6 +21,12 @@ class FeatureEncoder(ABC):
         Abstract method to be implemented by specific detector classes. Each detector must implement
         this method to detect objects in the provided image.
         """
+        pass
+
+    @abstractmethod
+    def compute_distance(
+        self, feature_vector_1: torch.Tensor, feature_vector_2: torch.Tensor
+    ) -> float:
         pass
 
 

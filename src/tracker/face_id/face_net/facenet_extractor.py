@@ -94,4 +94,4 @@ class FaceFeaturesExtractor:
             distance = torch.sum(torch.abs(feature_vector_1 - feature_vector_2))
         else:
             raise ValueError(f"Unsupported metric '{metric}'")
-        return distance
+        return distance.cpu().item()

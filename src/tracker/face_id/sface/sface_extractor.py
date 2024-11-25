@@ -53,18 +53,22 @@ ENCODERS_CONFIG: Dict[str, EncoderModelConfig] = {
 
 
 class FaceFeaturesExtractor:
-    def __init__(self, cfg: FaceIdConfig):
+    def __init__(
+        self,
+        cfg: FaceIdConfig,
+        debug: bool = False,
+    ):
+        self.debug = debug
         self.model_config = ENCODERS_CONFIG.get(cfg.feature_extractor.value)
         model_path = self.model_config.get_model_path()
         self.input_shape = self.model_config.input_shape
+
         # self.input_size = self.model_config.input_size
         providers = ["CPUExecutionProvider"]
         if torch.cuda.is_available():
             providers.append("CUDAExecutionProvider")
         self.session = ort.InferenceSession(model_path, providers=providers)
         self.io_binding = self.session.io_binding()
-        inputs = self.session.get_inputs()
-        outputs = self.session.get_outputs()
 
         self.input_name = self.session.get_inputs()[0].name
         self.output_name = self.session.get_outputs()[0].name
@@ -74,7 +78,8 @@ class FaceFeaturesExtractor:
             resize_for_padding(face, self.input_shape)
         )
         padded_image = pad_image_to_target_size(resized_image, self.input_shape)
-        save_tensor(padded_image, "resized_face_image.png")
+        if self.debug:
+            save_tensor(padded_image, "resized_face_image.png")
         # torch_tensor
         # resized_image = resized_image - self.model_config.mean
 

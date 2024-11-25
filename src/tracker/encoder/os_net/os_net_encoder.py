@@ -163,24 +163,26 @@ class OSNetFeatureEncoder(FeatureEncoder):
             res = self.model(cropped_batch)
         return res
 
-    def compute_distance(self, feature_vector_1, feature_vector_2):
+    def compute_distance(self, feature_vector_1, feature_vector_2, metric="cosine"):
         """
-        Compute pairwise distances (Euclidean) between feature vectors.
+        Compute pairwise distances between feature vectors using PyTorch.
 
-        :param features: A list of feature vectors.
-        :return: A dictionary with pairwise distances between the features.
+        :param feature_vector_1: First feature vector (PyTorch tensor).
+        :param feature_vector_2: Second feature vector (PyTorch tensor).
+        :param metric: The distance metric to use ('euclidean', 'cosine', 'manhattan').
+        :return: Computed distance.
         """
-
-        if self.model_config.metric == "euclidean":
-            distance = euclidean(feature_vector_1, feature_vector_2)
-        elif self.model_config.metric == "cosine":
-            distance = cosine(feature_vector_1, feature_vector_2)
-        elif self.model_config.metric == "manhattan":
-            distance = cityblock(feature_vector_1, feature_vector_2)
+        if metric == "euclidean":
+            distance = torch.norm(feature_vector_1 - feature_vector_2, p=2)
+        elif metric == "cosine":
+            distance = 1 - torch.nn.functional.cosine_similarity(
+                feature_vector_1.unsqueeze(0), feature_vector_2.unsqueeze(0)
+            )
+        elif metric == "manhattan":
+            distance = torch.sum(torch.abs(feature_vector_1 - feature_vector_2))
         else:
-            raise ValueError(f"Unsupported metric '{self.model_config.metric }'")
-
-        return (distance - self.model_config.mean) / self.model_config.std
+            raise ValueError(f"Unsupported metric '{metric}'")
+        return distance.cpu().item()
 
 
 def load_checkpoint(fpath):

@@ -57,7 +57,11 @@ OSNET_REPO = "osnet"
 
 
 class FaceDetector:
-    def __init__(self, cfg: FaceIdConfig):
+    def __init__(
+        self,
+        cfg: FaceIdConfig,
+        debug: bool = False,
+    ):
         self.model_config = ENCODERS_CONFIG.get(cfg.detector.value)
         model_path = self.model_config.get_model_path()
         self.input_size = self.model_config.input_size
@@ -76,7 +80,7 @@ class FaceDetector:
         ].name  # Assuming this is confidences
         self.box_output_name = self.session.get_outputs()[1].name
         self.threshold = cfg.detector_threshold.value
-        self.debug = False
+        self.debug = debug
         self.margin = 0
 
     def extract_face_from_track(
@@ -88,7 +92,8 @@ class FaceDetector:
         x2, y2 = min(image_width, x2), min(image_height, y2)
 
         cropped_image = image_object.float32_tensor[:, y1:y2, x1:x2]
-        save_tensor(cropped_image, "should_be_a_person.png")
+        if self.debug:
+            save_tensor(cropped_image, "should_be_a_person.png")
         return self.extract_face(cropped_image)
 
     def extract_face(self, input: torch.Tensor) -> torch.Tensor:
