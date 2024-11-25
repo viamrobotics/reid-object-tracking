@@ -306,10 +306,10 @@ class Tracker:
         self.current_track_candidates = current_track_candidates
 
         self.increment_age_and_delete_tracks(updated_tracks_ids)
+        self.face_identify_tracks(img, self.current_tracks_id)
 
         # Try to identify tracks that got a new embedding
         self.identify_tracks(self.current_tracks_id)
-        self.face_identify_tracks(img, self.current_tracks_id)
 
         # Set the new_object_event if new tracks were found
         if len(new_tracks_ids) > 0:
@@ -379,7 +379,7 @@ class Tracker:
         row_indices, col_indices = linear_sum_assignment(cost_matrix)
         return row_indices, col_indices, cost_matrix
 
-    def add_track_candidate(self, detection, feature_vector):
+    def add_track_candidate(self, detection, feature_vector: torch.Tensor):
         new_track_candidate = Track(
             track_id=detection.category,
             bbox=detection.bbox,
@@ -417,26 +417,6 @@ class Tracker:
             track.unset_is_detected()
         for track in self.track_candidates:
             track.unset_is_detected()
-
-    def add_track(self, detection, feature_vector, distance=0):
-        """
-        Add a new track to the tracker using a Detection object.
-
-        :param detection: Detection object containing bbox, score, and category.
-        """
-        # Generate a unique track ID
-        track_id = self.generate_track_id(detection.category)
-        # Create a new Track object and store it in the dictionary
-        self.tracks[track_id] = Track(
-            track_id=track_id,
-            bbox=detection.bbox,
-            feature_vector=feature_vector,
-            distance=distance,
-        )
-
-        # Add track_id as label in the beginning
-        self.track_ids_with_label[track_id] = [track_id]
-        return track_id
 
     def increment_age_and_delete_tracks(self, updated_tracks_ids=[]):
         # Remove or age out tracks that were not updated

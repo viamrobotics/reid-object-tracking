@@ -1,6 +1,6 @@
 import numpy as np
 from viam.services.vision import Detection
-from asyncio import Lock
+import torch
 
 
 class Track:
@@ -18,12 +18,12 @@ class Track:
 
         :param track_id: Unique identifier for the track.
         :param bbox: Bounding box coordinates [x1, y1, x2, y2].
-        :param feature_vector: Feature vector for re-id matching.
+        :param feature_vector: a CUDA torch Tensor. Feature vector for re-id matching.
         """
         self.track_id = track_id
         self.bbox = np.array(bbox)
         self.predicted_bbox = np.array(bbox)
-        self.feature_vector = np.array(feature_vector)
+        self.feature_vector = feature_vector
         self.age = 0  # Time since the last update
         self.history = [np.array(bbox)]  # Stores past bounding boxes for this track
         self.velocity = np.array([0, 0, 0, 0])  # Initial velocity (no motion)
@@ -51,7 +51,7 @@ class Track:
             and np.array_equal(self.feature_vector, other.feature_vector)
         )
 
-    def update(self, bbox, feature_vector, distance):
+    def update(self, bbox, feature_vector: torch.Tensor, distance):
         """
         Update the track with a new bounding box and feature vector.
         Also updates the velocity based on the difference between the last and current bbox.
@@ -63,7 +63,7 @@ class Track:
         bbox = np.array(bbox)
         self.velocity = bbox - self.bbox  # Update velocity
         self.bbox = bbox
-        self.feature_vector = np.array(feature_vector)
+        self.feature_vector = feature_vector
         self.age = 0
         self.history.append(bbox)
         self.predicted_bbox = self.predict()
@@ -155,7 +155,11 @@ class Track:
         )
 
     def serialize(self):
-        return self.track_id, self.bbox.tobytes(), self.feature_vector.tobytes()
+        return (
+            self.track_id,
+            self.bbox.tobytes(),
+            self.feature_vector.cpu().detach().numpy().tobytes(),
+        )
 
     def add_label(self, label_from_reid):
         self.label_from_reid = label_from_reid
