@@ -18,11 +18,15 @@ def get_tensor_from_np_array(np_array: np.ndarray) -> torch.Tensor:
 
 
 class ImageObject:
-    def __init__(self, viam_image: ViamImage, device=None):
+    def __init__(self, viam_image: ViamImage, pil_image: Image = None, device=None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.pil_image = Image.open(io.BytesIO(viam_image.data)).convert(
-            "RGB"
-        )  # -> in (H, W, C)
+        if pil_image is not None:
+            self.pil_image = pil_image
+        if viam_image is not None:
+            self.viam_image = viam_image
+            self.pil_image = Image.open(io.BytesIO(viam_image.data)).convert(
+                "RGB"
+            )  # -> in (H, W, C)
         self.np_array = np.array(self.pil_image, dtype=np.uint8)
         uint8_tensor, float32_tensor = get_tensor_from_np_array(self.np_array)
         self.uint8_tensor = uint8_tensor.to(self.device)

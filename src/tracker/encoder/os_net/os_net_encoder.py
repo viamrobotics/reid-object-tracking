@@ -21,6 +21,10 @@ from src.config.config import FeatureEncoderConfig
 from src.tracker.detector.detection import Detection
 from src.utils import resource_path
 from src.tracker.encoder.feature_encoder import FeatureEncoder
+from src.tracker.utils import (
+    resize_for_padding,
+    pad_image_to_target_size,
+)
 
 
 class EncoderModelConfig:
@@ -88,6 +92,7 @@ class OSNetFeatureEncoder(FeatureEncoder):
 
         model_name = "osnet_ain_x1_0"  # cfg.feature_extractor_name.value
         if model_name == "osnet_ain_x1_0":
+            self.input_shape = (256, 128)
             model = osnet_ain_x1_0(
                 num_classes=1000, loss="softmax", pretrained=False, use_gpu=use_gpu
             )
@@ -101,7 +106,6 @@ class OSNetFeatureEncoder(FeatureEncoder):
             raise ValueError("only osnet ain now")
 
         ##preprocessing
-        image_size = (256, 128)
         pixel_mean = [0.485, 0.456, 0.406]
         pixel_std = [0.229, 0.224, 0.225]
 
@@ -141,14 +145,12 @@ class OSNetFeatureEncoder(FeatureEncoder):
                 raise ValueError(f"Invalid crop region: {bbox}")
 
             # Resize the cropped image
-            resized_image = F.interpolate(
-                cropped_image.unsqueeze(0),  # Add batch dimension for resizing
-                size=(256, 128),
-                mode="bilinear",
-                align_corners=False,
-            ).squeeze(0)  # Remove batch dimension after resizing
 
-            cropped_images.append(resized_image)
+            resized_image, new_height, new_width, _, _ = resize_for_padding(
+                cropped_image, self.input_shape
+            )
+            padded_image = pad_image_to_target_size(resized_image, self.input_shape)
+            cropped_images.append(padded_image[0])
 
         # Stack all resized images into a batch
         cropped_batch = torch.stack(

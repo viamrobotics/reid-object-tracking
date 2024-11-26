@@ -22,9 +22,11 @@ def save_tensor(tensor: torch.Tensor, path):
     image.save(path)
 
 
-def resize_for_padding(input, target_size):
+def resize_for_padding(input_tensor, target_size):
     # Get the original dimensions
-    height, width = input.shape[1:]
+    height, width = input_tensor.shape[1:]
+    if height == 0 or width == 0:
+        raise ValueError(f"got input {input_tensor}")
     target_height, target_width = target_size
 
     # Calculate scaling factors to maintain aspect ratio
@@ -38,7 +40,7 @@ def resize_for_padding(input, target_size):
 
     # Resize the image while preserving aspect ratio
     resized_image = F.interpolate(
-        input.unsqueeze(0),  # Add batch dimension for resizing
+        input_tensor.unsqueeze(0),  # Add batch dimension for resizing
         size=(new_height, new_width),
         mode="bilinear",
         align_corners=False,

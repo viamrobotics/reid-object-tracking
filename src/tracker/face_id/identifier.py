@@ -102,7 +102,7 @@ class FaceIdentifier:
                     if cos_dist < min_cos_dist:
                         min_cos_dist = cos_dist
                         best_label = label
-                        best_confidence = 1 - euc_dist
+                        best_confidence = 1 - cos_dist
 
         return best_label, best_confidence
 

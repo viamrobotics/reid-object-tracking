@@ -102,8 +102,8 @@ class FaceDetector:
         """
 
         input_height, input_width = input.shape[1:]
-        resized_image, new_height, new_width, target_height, target_width = (
-            resize_for_padding(input, self.input_size)
+        resized_image, new_height, new_width, _, _ = resize_for_padding(
+            input, self.input_size
         )
         padded_image = pad_image_to_target_size(resized_image, self.input_size)
         input_height, input_width = padded_image.shape[2:]

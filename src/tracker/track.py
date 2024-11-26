@@ -30,7 +30,9 @@ class Track:
         self.distance = distance
 
         self.label = label
+
         self.label_from_reid = None
+        self.conf_from_reid = 0
 
         self.label_from_faceid = None
         self.conf_from_faceid = None
@@ -220,3 +222,13 @@ class Track:
 
     def is_detected(self):
         return self._is_detected
+
+    def get_all(self):
+        answer = {
+            "face_id_label": self.label_from_faceid,
+            "face_id_conf": self.conf_from_faceid,
+            "re_id_label": self.label_from_reid,
+            "re_id_conf": self.conf_from_reid,
+            "manual_label": self.label,
+        }
+        return answer

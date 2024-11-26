@@ -62,7 +62,9 @@ class Tracker:
 
         self.track_ids_with_label: Dict[str, List[str]] = {}
 
-        self.labeled_embeddings: Dict[str, List[np.ndarray]] = {}
+        self.labeled_person_embeddings: Dict[str, List[torch.Tensor]] = {}
+        self.path_to_known_persons = cfg.tracker_config.path_to_known_persons.value
+
         self.reid_threshold = cfg.tracker_config.re_id_threshold.value
 
         self.current_tracks_id = set()
@@ -77,6 +79,8 @@ class Tracker:
         self.count = 0
 
         self.start_background_loop = cfg.tracker_config._start_background_loop
+
+        self.compute_known_persons_embeddings()
 
     def start(self):
         if not self.start_fresh:
@@ -457,7 +461,7 @@ class Tracker:
                     )  # TODO: integrate this warning in the answer of the do_cmd
                     continue
                 embeddings += self.encoder.compute_features(img, detections)
-            self.labeled_embeddings[label] = embeddings
+            self.labeled_person_embeddings[label] = embeddings
             answer[label] = (
                 f"sucess adding {label}, found {len(embeddings)} embeddings."
             )
@@ -467,10 +471,10 @@ class Tracker:
         # TODO: check input here
         answer = {}
         for label in cmd:
-            if label not in self.labeled_embeddings:
+            if label not in self.labeled_person_embeddings:
                 answer[label] = f"can't find person {label}"
                 continue
-            del self.labeled_embeddings[label]
+            del self.labeled_person_embeddings[label]
             answer[label] = f"success deleting: {label}"
 
         return answer
@@ -480,6 +484,20 @@ class Tracker:
         for label, track_ids in self.track_ids_with_label.items():
             for track_id in track_ids:
                 answer.append(self.generate_person_data(label=label, id=track_id))
+        return answer
+
+    def list_current(self):
+        answer = {}
+        for track_id in self.tracks:
+            track = self.tracks[track_id]
+            if track.is_detected():
+                answer[track_id] = track.get_all()
+        return answer
+
+    def recompute_embeddings(self):
+        self.face_identifier.compute_known_embeddings()
+        self.compute_known_persons_embeddings()
+        answer = "embeddings successfully recomputed"
         return answer
 
     @staticmethod
@@ -514,6 +532,49 @@ class Tracker:
 
         return track_id
 
+    def compute_known_persons_embeddings(self):
+        """
+        Computes embeddings for known faces from the picture directory.
+        """
+
+        path_to_known_faces = self.path_to_known_persons
+        all_entries = os.listdir(path_to_known_faces)
+        directories = [
+            entry
+            for entry in all_entries
+            if os.path.isdir(os.path.join(path_to_known_faces, entry))
+        ]
+        for directory in directories:
+            label_path = os.path.join(path_to_known_faces, directory)
+            embeddings = []
+            for file in os.listdir(label_path):
+                if (
+                    (".jpg" in file.lower())
+                    or (".jpeg" in file.lower())
+                    or (".png" in file.lower())
+                ):
+                    im = Image.open(label_path + "/" + file).convert("RGB")
+                    img_obj = ImageObject(viam_image=None, pil_image=im)
+
+                    detections = self.detector.detect(img_obj)
+
+                    if not detections:
+                        continue
+
+                    # Compute feature vectors for the current detections
+                    batched_features_vectors = self.encoder.compute_features(
+                        img_obj, detections
+                    )
+                    list_of_tensors = list(batched_features_vectors.unbind(dim=0))
+                    embeddings += list_of_tensors
+                else:
+                    LOGGER.warning(
+                        "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",  # pylint: disable=line-too-long
+                        file,
+                    )
+
+            self.labeled_person_embeddings[directory] = embeddings
+
     def identify_tracks(self, track_ids):
         """
         Args:
@@ -527,7 +588,7 @@ class Tracker:
                 continue
             track_embedding = track.get_embedding()
             found_match = False
-            for label, embeddings in self.labeled_embeddings.items():
+            for label, embeddings in self.labeled_person_embeddings.items():
                 if label == track.label_from_reid:
                     continue
 
@@ -538,25 +599,28 @@ class Tracker:
 
                     if feature_dist < self.reid_threshold:
                         found_match = True
-                        old_label = track._get_label()
-                        track.relabel_reid_label(label)
+                        track.label_from_reid = label
+                        track.conf_from_reid = 1 - feature_dist
+
+                        # old_label = track._get_label()
+                        # track.relabel_reid_label(label)
 
                         # if only one track had the label 'old_label'
-                        if len(self.track_ids_with_label[old_label]) == 1:
-                            if label not in self.track_ids_with_label:
-                                self.track_ids_with_label[label] = (
-                                    self.track_ids_with_label.pop(old_label)
-                                )
-                            else:
-                                self.track_ids_with_label[label].append(track_id)
-                                del self.track_ids_with_label[old_label]
+                        # if len(self.track_ids_with_label[old_label]) == 1:
+                        #     if label not in self.track_ids_with_label:
+                        #         self.track_ids_with_label[label] = (
+                        #             self.track_ids_with_label.pop(old_label)
+                        #         )
+                        #     else:
+                        #         self.track_ids_with_label[label].append(track_id)
+                        #         del self.track_ids_with_label[old_label]
 
-                        else:
-                            self.track_ids_with_label[old_label].remove(track_id)
-                            if label not in self.track_ids_with_label:
-                                self.track_ids_with_label[label] = [track_id]
-                            else:
-                                self.track_ids_with_label[label].append(track_id)
+                        # else:
+                        #     self.track_ids_with_label[old_label].remove(track_id)
+                        #     if label not in self.track_ids_with_label:
+                        #         self.track_ids_with_label[label] = [track_id]
+                        #     else:
+                        #         self.track_ids_with_label[label].append(track_id)
 
                         break
                 if found_match:

@@ -73,6 +73,12 @@ class TrackerConfig:
             field_name="_start_background_loop", config=config, default_value=True
         )
 
+        self.path_to_known_persons = StringAttribute(
+            field_name="path_to_known_persons",
+            config=config,
+            default_value=None,
+        )
+
 
 class DetectorConfig:
     def __init__(self, config: "ServiceConfig"):
@@ -145,7 +151,7 @@ class FaceIdConfig:
             config=config,
             min_value=0.0,
             max_value=1.0,
-            default_value=0.4,
+            default_value=0.3,
         )
 
         self.euclidean_id_threshold = FloatAttribute(
@@ -153,7 +159,7 @@ class FaceIdConfig:
             config=config,
             min_value=0.0,
             max_value=1.0,
-            default_value=1,
+            default_value=0.9,
         )
 
 
