@@ -53,6 +53,7 @@ class Tracker:
         self.track_candidates: List[Track] = []
         self.tracks_manager = TracksManager(cfg.tracks_manager_config)
         self.start_fresh: bool = cfg.tracker_config.start_fresh.value
+        self.save_to_db: bool = cfg.tracker_config.save_to_db.value
 
         self.minimum_track_persistance: int = (
             cfg.tracker_config.min_track_persistence.value
@@ -162,7 +163,10 @@ class Tracker:
                     self.track_ids_with_label[new_label] = [track_id]
             del self.track_ids_with_label[old_label]
             answer[old_label] = f"success: changed label to '{new_label}'"
-        self.tracks_manager.write_track_ids_with_label_on_db(self.track_ids_with_label)
+        if self.save_to_db:
+            self.tracks_manager.write_track_ids_with_label_on_db(
+                self.track_ids_with_label
+            )
         return answer
 
     def get_current_detections(self):
@@ -323,9 +327,10 @@ class Tracker:
 
         # Write only the updated tracks on the db
         # TODO: only pass updated tracks so we don't serialize everytime
-        if self.count % self.tracks_manager.save_period.value == 0:
-            self.tracks_manager.write_tracks_on_db(self.tracks)
-            self.tracks_manager.write_category_count_on_db(self.category_count)
+        if self.save_to_db:
+            if self.count % self.tracks_manager.save_period.value == 0:
+                self.tracks_manager.write_tracks_on_db(self.tracks)
+                self.tracks_manager.write_category_count_on_db(self.category_count)
 
         if self.debug:
             log_tracks_info(

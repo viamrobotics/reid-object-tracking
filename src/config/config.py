@@ -18,7 +18,7 @@ class TrackerConfig:
             field_name="min_track_persistence",
             config=config,
             min_value=0,
-            default_value=0,
+            default_value=10,
         )
         self.lambda_value = FloatAttribute(
             field_name="lambda_value",
@@ -39,7 +39,7 @@ class TrackerConfig:
             config=config,
             min_value=0,
             max_value=5,
-            default_value=0.25,
+            default_value=0.3,
         )
         self.feature_distance_metric = StringAttribute(
             field_name="feature_distance_metric",
@@ -51,7 +51,7 @@ class TrackerConfig:
         self.max_frequency = FloatAttribute(
             field_name="max_frequency_hz",
             config=config,
-            default_value=30,
+            default_value=10,
             min_value=1,
             max_value=100,
         )
@@ -65,6 +65,12 @@ class TrackerConfig:
 
         self.start_fresh = BoolAttribute(
             field_name="start_fresh",
+            config=config,
+            default_value=True,
+        )
+
+        self.save_to_db = BoolAttribute(
+            field_name="save_to_db",
             config=config,
             default_value=False,
         )
@@ -93,7 +99,7 @@ class DetectorConfig:
             config=config,
             min_value=0.0,
             max_value=1.0,
-            default_value=0.9,
+            default_value=0.6,
         )
         self.device = StringAttribute(
             field_name="detector_device",
@@ -175,7 +181,7 @@ class FeatureEncoderConfig:
         self.device = StringAttribute(
             field_name="feature_encoder_device",
             config=config,
-            default_value="cpu",
+            default_value="cuda",
             allowlist=["cpu", "cuda"],
         )
 

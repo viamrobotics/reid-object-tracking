@@ -12,7 +12,7 @@ from functools import partial
 import torch
 from src.image.image import ImageObject
 import torchvision.transforms as T
-import torch.nn.functional as F
+from viam.logging import getLogger
 
 # not useful
 import sys
@@ -25,6 +25,8 @@ from src.tracker.utils import (
     resize_for_padding,
     pad_image_to_target_size,
 )
+
+LOGGER = getLogger(__name__)
 
 
 class EncoderModelConfig:
@@ -81,12 +83,21 @@ class OSNetFeatureEncoder(FeatureEncoder):
         :param model_path: The path to the pre-trained model file.
         :param device: The device to run the model on ('cpu' or 'cuda').
         """
+
         if cfg.device.value == "cuda":
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            use_gpu = True if torch.cuda.is_available() else False
-        else:
-            self.device = torch.device("cpu")
+            if not torch.cuda.is_available():
+                LOGGER.warning(
+                    "'feature_encoder_device' is set to 'cuda' but cuda is not avalaible. using cpu instead"
+                )
+                use_gpu = False
+                self.device = torch.device("cpu")
+            else:
+                use_gpu = True
+                self.device = torch.device("cuda")
+
+        else:  # cfg.device = "cpu"x
             use_gpu = False
+            self.device = torch.device("cpu")
 
         self.model_config = ENCODERS_CONFIG.get(cfg.feature_extractor_name.value)
 
