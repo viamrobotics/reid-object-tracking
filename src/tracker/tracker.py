@@ -532,15 +532,16 @@ class Tracker:
         Computes embeddings for known faces from the picture directory.
         """
 
-        path_to_known_faces = self.path_to_known_persons
-        all_entries = os.listdir(path_to_known_faces)
+        if not self.path_to_known_persons:
+            return
+        all_entries = os.listdir(self.path_to_known_persons)
         directories = [
             entry
             for entry in all_entries
-            if os.path.isdir(os.path.join(path_to_known_faces, entry))
+            if os.path.isdir(os.path.join(self.path_to_known_persons, entry))
         ]
         for directory in directories:
-            label_path = os.path.join(path_to_known_faces, directory)
+            label_path = os.path.join(self.path_to_known_persons, directory)
             embeddings = []
             for file in os.listdir(label_path):
                 if (

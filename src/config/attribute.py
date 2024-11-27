@@ -120,6 +120,8 @@ class StringAttribute(Attribute):
 
     def validate(self, value: Any):
         value = super().validate(value)
+        if value is None:
+            return value
         if not isinstance(value, str):  # if it's not the default value
             if not hasattr(
                 value, "string_value"

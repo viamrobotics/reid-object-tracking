@@ -110,8 +110,9 @@ class FaceIdentifier:
         """
         Computes embeddings for known faces from the picture directory.
         """
-
         path_to_known_faces = self.cfg.path_to_known_faces.value
+        if path_to_known_faces is None:
+            return
         all_entries = os.listdir(path_to_known_faces)
         directories = [
             entry

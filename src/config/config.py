@@ -126,7 +126,6 @@ class FaceIdConfig:
             field_name="path_to_known_faces",
             config=config,
             default_value=None,
-            required=True,
         )
 
         self.device = StringAttribute(

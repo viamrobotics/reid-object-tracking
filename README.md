@@ -32,10 +32,8 @@ The following attributes are required to configure your `re-id-object-tracker` m
 
 ```json
 {
-  "path_to_known_faces": "/path/to/known_faces",
-  "path_to_known_persons": "/path/to/known_persons",
   "camera_name": "camera-1",
-  "path_to_database": "/path/to/database"
+  "path_to_database": "/path/to/database.db" #the file doesn't need to exists
 }
 ```
 
@@ -128,7 +126,7 @@ Recomputes embeddings.
 
 | Name                      | Type   | Inclusion | Default                             | Description                                                                                                       |
 | ------------------------- | ------ | --------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `path_to_known_faces`     | string | **Required**  | `None`                              | Path to a file or database containing images or embeddings of known faces.                                       |
+| `path_to_known_faces`     | string | Optional  | `None`                              | Path to a file or database containing images or embeddings of known faces.                                       |
 | `face_detector_device`    | string | Optional  | `'cpu'`                             | Device on which the face detector will run. Options are `cpu` and `cuda`.                                         |
 | `face_detector_model`     | string | Optional  | `'ultraface_version-RFB-320-int8'` | Name of the model used for face detection.  Only option at the moment.                                                                        |
 | `face_detection_threshold`| float  | Optional  | `0.9`                               | Confidence threshold for detecting faces, with values ranging from 0.0 to 1.0.                                   |
