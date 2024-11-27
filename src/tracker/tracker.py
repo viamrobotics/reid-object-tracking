@@ -147,26 +147,16 @@ class Tracker:
         return ImageObject(viam_img, self.device)
 
     def relabel_tracks(self, dict_old_label_new_label: Dict[str, str]):
-        answer = dict_old_label_new_label
-        for old_label, new_label in dict_old_label_new_label.items():
-            if old_label not in self.track_ids_with_label.keys():
-                answer[old_label] = (
-                    f"DoCommand relabelling error: couldn't find tracks with the label : {old_label}"
+        answer = {}
+        for track_id, new_label in dict_old_label_new_label.items():
+            if track_id not in self.tracks:
+                answer[track_id] = (
+                    f"DoCommand relabelling error: couldn't find tracks with the ID: {track_id}"
                 )
                 continue
-            track_ids_with_old_label = self.track_ids_with_label.get(old_label)
-            for track_id in track_ids_with_old_label:
-                self.tracks[track_id].relabel(new_label)
-                if new_label in self.track_ids_with_label.keys():
-                    self.track_ids_with_label[new_label].append(track_id)
-                else:
-                    self.track_ids_with_label[new_label] = [track_id]
-            del self.track_ids_with_label[old_label]
-            answer[old_label] = f"success: changed label to '{new_label}'"
-        if self.save_to_db:
-            self.tracks_manager.write_track_ids_with_label_on_db(
-                self.track_ids_with_label
-            )
+
+            self.tracks[track_id].label = new_label
+            answer[track_id] = f"success: changed label to '{new_label}'"
         return answer
 
     def get_current_detections(self):

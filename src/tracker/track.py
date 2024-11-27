@@ -142,18 +142,25 @@ class Track:
         return np.linalg.norm(self.feature_vector - feature_vector)
 
     def get_detection(self, min_persistence=None) -> Detection:
-        if self.is_candidate and min_persistence is None:
-            return ValueError(
-                "Need to pass persistence in argument to get track candidate"
-            )
-        label = self._get_label(min_persistence)
+        if self.is_candidate:
+            if min_persistence is None:
+                return ValueError(
+                    "Need to pass persistence in argument to get track candidate"
+                )
+            class_name = self._get_label()
+        else:
+            class_name = self.track_id
+            label = self._get_label(min_persistence)
+            if label != self.track_id:
+                class_name += f"  (label: {label})"
+
         return Detection(
             x_min=self.bbox[0],
             y_min=self.bbox[1],
             x_max=self.bbox[2],
             y_max=self.bbox[3],
             confidence=1 - self.distance,
-            class_name=label,
+            class_name=class_name,
         )
 
     def serialize(self):

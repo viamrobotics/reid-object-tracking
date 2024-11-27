@@ -66,13 +66,13 @@ class TrackerConfig:
         self.start_fresh = BoolAttribute(
             field_name="start_fresh",
             config=config,
-            default_value=True,
+            default_value=False,
         )
 
         self.save_to_db = BoolAttribute(
             field_name="save_to_db",
             config=config,
-            default_value=False,
+            default_value=True,
         )
 
         self._start_background_loop = BoolAttribute(

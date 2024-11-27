@@ -95,7 +95,7 @@ class OSNetFeatureEncoder(FeatureEncoder):
                 use_gpu = True
                 self.device = torch.device("cuda")
 
-        else:  # cfg.device = "cpu"x
+        else:  # cfg.device = "cpu"
             use_gpu = False
             self.device = torch.device("cpu")
 
