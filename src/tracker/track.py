@@ -147,7 +147,7 @@ class Track:
                 return ValueError(
                     "Need to pass persistence in argument to get track candidate"
                 )
-            class_name = self._get_label()
+            class_name = self._get_label(min_persistence)
         else:
             class_name = self.track_id
             label = self._get_label(min_persistence)

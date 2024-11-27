@@ -11,7 +11,10 @@ from src.config.attribute import (
 class TrackerConfig:
     def __init__(self, config: "ServiceConfig"):
         self.re_id_threshold = FloatAttribute(
-            field_name="re_id_threshold", config=config, min_value=0, default_value=0.3
+            field_name="re_id_threshold",
+            config=config,
+            min_value=0,
+            default_value=0.3,
         )
 
         self.min_track_persistence = IntAttribute(
@@ -38,7 +41,7 @@ class TrackerConfig:
             field_name="min_distance_threshold",
             config=config,
             min_value=0,
-            max_value=5,
+            max_value=1,
             default_value=0.3,
         )
         self.feature_distance_metric = StringAttribute(
@@ -123,6 +126,7 @@ class FaceIdConfig:
             field_name="path_to_known_faces",
             config=config,
             default_value=None,
+            required=True,
         )
 
         self.device = StringAttribute(

@@ -28,93 +28,121 @@ Navigate to the [**CONFIGURE** tab](https://docs.viam.com/configure/) of your [m
 
 ### Attributes description
 
-The following attributes are available to configure your `re-id-object-tracker` module:
+The following attributes are required to configure your `re-id-object-tracker` module:
 
-### TrackerConfig
-
-| Name                      | Type   | Inclusion | Default       | Description                                                                                    |
-| ------------------------- | ------ | --------- | ------------- | ---------------------------------------------------------------------------------------------- |
-| `lambda_value`            | float  | Optional  | `0.95`        | The lambda value is meant to adjust the contribution of the re-id matching and the IoU. The distance between to tracks equals: λ * feature_dist + (1 - λ) * (1 - IoU_score).|
-| `max_age_track`           | int    | Optional  | `1e5`          | Maximum age (in frames) for a track to be considered active. Ranges from 0 to 1e5.             |
-| `min_distance_threshold`  | float  | Optional  | `0.6`         | Minimum distance threshold for considering two features as distinct. Values range from 0 to 5. |
-| `feature_distance_metric` | string | Optional  | `'euclidean'` | Metric used for calculating feature distance. Options include `cosine` and `euclidean`.        |
-| `cooldown_period_s`       | float  | Optional  | `5`         | Duration for which the trigger `new_object_detected`.                                          |
-| `start_fresh`       | bool  | Optional  | `False`         | Whether or|
-
-### DetectorConfig
-
-| Name                              | Type   | Inclusion    | Default | Description                                                                                                     |
-| --------------------------------- | ------ | ------------ | ------- | --------------------------------------------------------------------------------------------------------------- |
-| `detector_model_name`             | string | **Required** |         | Name of the model used for detection. Available options are `effDet0_int8`, `effDet0_fp16`, and `effDet0_fp32`. |
-| `detection_threshold`             | float  | Optional     | `0.4`   | Confidence threshold for detecting objects, with values ranging from 0.0 to 1.0.                                |
-| `detector_device`                 | string | Optional     |         | Device on which the detection model will run. Options are `cpu` and `gpu`.                                      |
-| `detection_max_detection_results` | int    | Optional     | `5`     | Maximum number of detection results to return. Must be at least 1.                                              |
-
-### FeatureEncoderConfig
-
-| Name                      | Type   | Inclusion | Default | Description                                                                                                       |
-| ------------------------- | ------ | --------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
-| `feature_extractor_model` | string | Optional  |    `osnet_ain_x1_0`     | Name of the model used for feature extraction. Available options are `osnet_x0_25` and `osnet_ain_x1_0`. |
-| `feature_encoder_device`  | string | Optional  |         | Device on which the feature encoder will run. Options are `cpu` and `gpu`.                                        |
-
-### TracksManagerConfig
-
-| Name                      | Type   | Inclusion    | Default | Description                                                                                     |
-| ------------------------- | ------ | ------------ | ------- | ------------------------------------------------------------------------------------------------ |
-| `path_to_database`        | string | **Required** |         | Path to the database where tracking information is stored.                                       |
-| `save_period`             | int    | Optional     | `200`     | Frequency (in frames) at which the tracking information is saved to the database.               |
-
+```json
+{
+  "path_to_known_faces": "/path/to/known_faces",
+  "path_to_known_persons": "/path/to/known_persons",
+  "camera_name": "camera-1",
+  "path_to_database": "/path/to/database"
+}
+```
 
 ## `DoCommand()`
 
 In addition to the [vision service API](https://docs.viam.com/services/vision/#api), the `re-id-object-tracking` module supports some model-specific commands that allow you to add, delete, relabel and list people.
 You can invoke these commands by passing appropriately keyed JSON documents to the [`DoCommand()`](/appendix/apis/services/vision/#docommand) method using one of [Viam's SDKs](https://docs.viam.com/sdks/).
 
-For example:
+
+### `list_current`
+The `list_current` doCommand is used to get all the informations of the currently detected tracks.
+
+Input:
 
 ```json
+"list_current": true
+```
+returns:
+```json
 {
-  "add": {
-    "amanda": ["/path/to/amanda-pictures/dir"], 
-    "bob": ["/path/to/bob-pictures/dir"]
+  "list_current": {
+    track_id": {
+      "manual_label": str,
+      "face_id_label": str,
+      "face_id_conf": float,
+      "re_id_label": str,
+      "re_id_conf": float
+    }
   }
 }
 ```
 
+### `relabel()`
+The object tracker generate by default a unique ID string in the format  `"<category>_N_YYYYMMDD_HHMMSS"`. Given this unique id, the user can add a label to track (attached to the `manual_label` field in the output of `list_current`).
+
 ```json
-{
-  "delete": ["amanda","bob"]
-}
+"relabel": {"person_N_20241126_190034": "Known Person"}
 ```
 
+returns:
 ```json
 {
   "relabel": {
-    "person1_30122024": "amanda",
-    "person2_20112024": "bob"
+    "person_N_20241126_190034": "success: changed label to 'Known Person' "
   }
-}
 ```
 
+
+### `recompute_embeddings`
+Recomputes embeddings.
 ```json
-{
-  "list": "true"
-}
+"recompute_embeddings": true
 ```
-
-| Key | Description |
-| ----- | --------- |
-| `add` | Add a new person or people to the authorized label list. Use a directory with pictures of the person from that day. Re-ID will not work with different clothes. |
-| `delete` | Delete a new person or people from the authorized label list by label. |
-| `relabel` | Relabel a person or people by ID. |
-| `list` | List known people's labels, IDs and whether they are authorized. |
-
-If the distance between the embedding associated with a tracked object and the embedding computed from the pictures in the directory is smaller than the config attribute `re_id_threshold`, the label associated to the track is replaced by the `re_id_label` passed in the DoCommand `add`.
-Please note that the object tracking module gives priority to a label "manually" added with the `relabel()` command over a labeling resulting from a matching against embeddings added through the `add()` command.
-
-For more information, see [`DoCommand()`](/appendix/apis/services/vision/#docommand).
 
 ## Supplementaries
+
+### TrackerConfig
+
+| Name                      | Type   | Inclusion | Default       | Description                                                                                    |
+| ------------------------- | ------ | --------- | ------------- | ---------------------------------------------------------------------------------------------- |
+| `lambda_value`            | float  | Optional  | `0.95`        | The lambda value is meant to adjust the contribution of the re-id matching and the IoU. The distance between two tracks equals: λ * feature_dist + (1 - λ) * (1 - IoU_score). |
+| `max_age_track`           | int    | Optional  | `1e3`         | Maximum age (in frames) for a track to be considered active. Ranges from 0 to 1e5.             |
+| `min_distance_threshold`  | float  | Optional  | `0.3`         | Minimum distance threshold for considering two features as distinct. Values range from 0 to 5. |
+| `feature_distance_metric` | string | Optional  | `'euclidean'` | Metric used for calculating feature distance. Options include `cosine` and `euclidean`.        |
+| `cooldown_period_s`       | float  | Optional  | `5`           | Duration for which the trigger is on.`new_object_detected`.                                          |
+| `start_fresh`             | bool   | Optional  | `False`       | Whether or not to load the tracks from the database.                                     |
+| `re_id_threshold`         | float  | Optional  | `0.3`         | Threshold for determining whether two persons match based on body features similarity.    |
+| `min_track_persistence`   | int    | Optional  | `10`          | Minimum number of frames a track must persist to be considered valid.                         |
+| `max_frequency`           | float  | Optional  | `10`          | Frequency at which the tracking steps are performed. |
+| `save_to_db`              | bool   | Optional  | `True`        | Indicates whether tracking information should be saved to the database.                       |
+| `path_to_known_persons`   | string | Optional  | `None`        | Path to the database containing pictures of entire persons.                |
+
+### DetectorConfig
+
+| Name                              | Type   | Inclusion    | Default                                 | Description                                                                                                     |
+| --------------------------------- | ------ | ------------ | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `detector_model_name`             | string | Optional| `'fasterrcnn_mobilenet_v3_large_320_fpn'` | Name of the model used for detection. Only option at the moment. |
+| `detection_threshold`             | float  | Optional     | `0.6`                                   | Confidence threshold for detecting objects, with values ranging from 0.0 to 1.0.                                |
+| `detector_device`                 | string | Optional     | `'cpu'`                                 | Device on which the detection model will run. Options are `cpu` and `gpu`.                                      |
+
+
+### FeatureEncoderConfig
+
+| Name                      | Type   | Inclusion | Default        | Description                                                                                                       |
+| ------------------------- | ------ | --------- | -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `feature_extractor_model` | string | Optional  | `'osnet_ain_x1_0'` | Name of the model used for feature extraction. Only option at the moment.|
+| `feature_encoder_device`  | string | Optional  | `'cuda'`        | Device on which the feature encoder will run. Options are `cpu` and `cuda`.                                        |
+
+### FaceIdConfig
+
+| Name                      | Type   | Inclusion | Default                             | Description                                                                                                       |
+| ------------------------- | ------ | --------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `path_to_known_faces`     | string | **Required**  | `None`                              | Path to a file or database containing images or embeddings of known faces.                                       |
+| `face_detector_device`    | string | Optional  | `'cpu'`                             | Device on which the face detector will run. Options are `cpu` and `cuda`.                                         |
+| `face_detector_model`     | string | Optional  | `'ultraface_version-RFB-320-int8'` | Name of the model used for face detection.  Only option at the moment.                                                                        |
+| `face_detection_threshold`| float  | Optional  | `0.9`                               | Confidence threshold for detecting faces, with values ranging from 0.0 to 1.0.                                   |
+| `face_feature_extractor_model` | string | Optional | `'facenet'` | Model used for extracting features from detected faces for identification.  Only option at the moment.                                      |
+| `cosine_id_threshold`     | float  | Optional  | `0.3`                               | Threshold for determining face identity matches using cosine similarity.                                              |
+| `euclidean_id_threshold`  | float  | Optional  | `0.9`                               | Threshold for determining face identity matches using Euclidean distance.                                             |
+
+### TracksManagerConfig
+
+| Name               | Type   | Inclusion    | Default | Description                                                                                     |
+| ------------------ | ------ | ------------ | ------- | ------------------------------------------------------------------------------------------------ |
+| `path_to_database` | string | **Required** |         | Path to the database where tracking information is stored.                                       |
+| `save_period`      | int    | Optional     | `20`    | Interval (in number of tracking steps) when tracks are saved to the database.               |
+
 
 ## PyInstaller build instructions
 *in progress*
