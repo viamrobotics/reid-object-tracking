@@ -13,3 +13,6 @@ lint:
 
 executable:
 	python -m PyInstaller --onefile --hidden-import="googleapiclient" src/main.py
+
+dist/archive.tar.gz: meta.json dist/main dist/first_run.sh
+	tar -czvf $@ $^
