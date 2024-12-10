@@ -4,6 +4,7 @@ import sqlite3
 import numpy as np
 from src.config.config import TracksManagerConfig
 import json
+import torch
 
 tables: Dict[str, str] = {
     "tracks": """
@@ -57,15 +58,22 @@ class TracksManager:
             raise ValueError(
                 "can't deserialize track, too much or too few values to unpack."
             )
+
         track_id, bbox_blob, embedding_blob = serialized_track
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        feature_vector = np.frombuffer(embedding_blob, dtype=np.float32).reshape(
+            512,
+        )
+        feature_vector = torch.from_numpy(feature_vector)
+        feature_vector = feature_vector.to(device).contiguous()
+
         return Track(
             track_id=track_id,
             bbox=np.frombuffer(bbox_blob, dtype=int).reshape(
                 4,
             ),
-            feature_vector=np.frombuffer(embedding_blob, dtype=np.float32).reshape(
-                512,
-            ),
+            feature_vector=feature_vector,
             distance=None,
             is_candidate=False,
         )
