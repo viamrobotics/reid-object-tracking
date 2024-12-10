@@ -11,5 +11,5 @@
     }
   ],
   "entrypoint": "dist/main",
-  "first_run": "dist/first_run.sh"
+  "first_run": "/first_run.sh"
 }
