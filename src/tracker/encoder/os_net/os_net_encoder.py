@@ -1,9 +1,6 @@
 import os
 import os.path as osp
 import pickle
-
-# not useful
-import sys
 from collections import OrderedDict
 from functools import partial
 from typing import Dict, List
@@ -11,7 +8,6 @@ from typing import Dict, List
 import numpy as np
 import torch
 import torchvision.transforms as T
-from scipy.spatial.distance import cityblock, cosine, euclidean
 from viam.logging import getLogger
 
 from src.config.config import FeatureEncoderConfig
