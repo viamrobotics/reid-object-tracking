@@ -114,7 +114,14 @@ class FaceIdentifier:
         path_to_known_faces = self.cfg.path_to_known_faces.value
         if path_to_known_faces is None:
             return
+        if not os.path.exists(path_to_known_faces):
+            LOGGER.warning(
+                "Directory for known faces '%s' did not exist and was created.",
+                path_to_known_faces,
+            )
+            os.makedirs(path_to_known_faces)
         all_entries = os.listdir(path_to_known_faces)
+
         directories = [
             entry
             for entry in all_entries
