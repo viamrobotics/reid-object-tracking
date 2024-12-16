@@ -1,30 +1,25 @@
 import os
+import os.path as osp
+import pickle
+from collections import OrderedDict
+from functools import partial
 from typing import Dict, List
 
 import numpy as np
-from collections import OrderedDict
-from src.tracker.encoder.os_net.osnet import osnet_ain_x1_0
-from scipy.spatial.distance import cityblock, cosine, euclidean
-
-import pickle
-import os.path as osp
-from functools import partial
 import torch
-from src.image.image import ImageObject
 import torchvision.transforms as T
 from viam.logging import getLogger
 
-# not useful
-import sys
-
 from src.config.config import FeatureEncoderConfig
+from src.image.image import ImageObject
 from src.tracker.detector.detection import Detection
-from src.utils import resource_path
 from src.tracker.encoder.feature_encoder import FeatureEncoder
+from src.tracker.encoder.os_net.osnet import osnet_ain_x1_0
 from src.tracker.utils import (
-    resize_for_padding,
     pad_image_to_target_size,
+    resize_for_padding,
 )
+from src.utils import resource_path
 
 LOGGER = getLogger(__name__)
 
