@@ -6,7 +6,6 @@ that has an extractor and an encoder to compute and compare
 face embeddings.
 """
 
-import math
 import os
 from typing import Tuple
 

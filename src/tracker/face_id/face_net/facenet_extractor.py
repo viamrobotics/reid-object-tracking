@@ -1,8 +1,6 @@
 import os
 from typing import Dict, Tuple
 
-import numpy as np
-import onnxruntime as ort
 import torch
 
 from src.config.config import FaceIdConfig
