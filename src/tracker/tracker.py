@@ -534,6 +534,13 @@ class Tracker:
 
         if not self.path_to_known_persons:
             return
+        if not os.path.exists(self.path_to_known_persons):
+            LOGGER.warning(
+                "Directory for known persons '%s' did not exist and was created.",
+                self.path_to_known_persons,
+            )
+            os.makedirs(self.path_to_known_persons)
+
         all_entries = os.listdir(self.path_to_known_persons)
         directories = [
             entry
