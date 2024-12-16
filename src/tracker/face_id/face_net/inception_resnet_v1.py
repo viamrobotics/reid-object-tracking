@@ -358,12 +358,3 @@ def get_torch_home():
 
 #     state_dict = torch.load(cached_file)
 #     mdl.load_state_dict(state_dict)
-
-
-def get_torch_home():
-    torch_home = os.path.expanduser(
-        os.getenv(
-            "TORCH_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "torch")
-        )
-    )
-    return torch_home
