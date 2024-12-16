@@ -12,6 +12,9 @@ from src.image.image import ImageObject
 from src.tracker.detector.detection import Detection
 from src.tracker.detector.detector import Detector
 
+# Bypasses SSL certificate verification to avoid SSL errors such as:
+# URLError - <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate>
+# This is necessary in some environments where the local issuer certificate can't be retrieved.
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
