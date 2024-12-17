@@ -8,9 +8,7 @@ from scipy.spatial.distance import cityblock, cosine, euclidean
 
 from src.config.config import FaceIdConfig
 from src.tracker.utils import (
-    get_cropped_tensor,
     pad_image_to_target_size,
-    padded_to_original_coordinates,
     resize_for_padding,
     save_tensor,
 )
