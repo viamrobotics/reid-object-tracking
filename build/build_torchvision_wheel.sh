@@ -4,7 +4,7 @@ set -ex
 TORCHVISION_VERSION=0.20.0
 PYTORCH_WHEEL_URL="https://developer.download.nvidia.com/compute/redist/jp/v61/pytorch/torch-2.5.0a0+872d972e41.nv24.08.17622132-cp310-cp310-linux_aarch64.whl"
 TORCHVISION_DIR="./torchvision"
-#cd build
+cd build
 # Create a virtual environment
 VENV_DIR=".build_venv"
 python3 -m venv $VENV_DIR
@@ -32,4 +32,5 @@ pip install wheel
 # Install TorchVision from the cloned repository
 cd torchvision
 python setup.py --verbose bdist_wheel --dist-dir ../
+cd ../
 pip install torchvision-0.20.0a0+afc54f7-cp310-cp310-linux_aarch64.whl

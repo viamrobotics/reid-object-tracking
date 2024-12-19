@@ -16,3 +16,13 @@ clean-pyinstaller:
 
 build-torchvision-wheel:
 	./build/build_torchvision_wheel.sh
+
+setup:
+	sudo apt-get install cmake python3-pip libopenblas-base libopenmpi-dev libomp-dev libjpeg-dev zlib1g-dev libpython3-dev libavcodec-dev libavformat-dev libswscale-dev
+# 	This install cuDnn	
+	../bin/first_run.sh
+# 	This also pip install torch and torchvision
+	build-torchvision-wheel
+	./install_requirements.sh
+
+
