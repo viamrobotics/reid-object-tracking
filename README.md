@@ -142,25 +142,31 @@ Recomputes embeddings.
 | `save_period`      | int    | Optional     | `20`    | Interval (in number of tracking steps) when tracks are saved to the database.               |
 
 
-## PyInstaller build instructions
-*in progress*
-<!-- Run this to create your virtual environment:
-```
-./setup.sh
+## PyInstaller Build Process
+
+This project includes a `Makefile` and a `build_installer.sh` script to automate the PyInstaller build process. PyInstaller is used to create standalone executables from the Python module scripts.
+
+### available `make` targets
+
+#### 1. `pyinstaller`
+This command builds the module executable using PyInstaller.
+
+##### Usage:
+
+```bash
+make pyinstaller
 ```
 
-Run this to create your virtual environment:
-Activate it bby running:
-```
-source .venv/bin/activate
-```
+This creates the PyInstaller executable under `./pyinstaller_dist`
 
-Make sure that the requirements are installed:
-```
-pip3 install -r requirements.txt
-```
+#### 2. `clean-pyinstaller`
 
-Build the executable `dist/main`
+This command removes the directories used by PyInstaller to store the build artifacts and distribution files.
+
+##### Usage:
+
+To build the project with the default paths:
+
+```bash
+make clean-pyinstaller
 ```
-python -m PyInstaller --onefile --hidden-import="googleapiclient" --add-data "./src/models/checkpoints:checkpoints"  src/main.py
-``` -->

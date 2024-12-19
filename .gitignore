@@ -12,10 +12,6 @@ results*
 #ignore models
 /src/models/
 
-#from pyinstaller
-/main/
-/build/
-/dist/main
 
-
- 
+/pyinstaller_build/
+/pyinstaller_dist/
