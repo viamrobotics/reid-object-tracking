@@ -13,3 +13,6 @@ clean-pyinstaller:
 	@echo "Cleaning PyInstaller workpath: $(PYINSTALLER_WORKPATH)"
 	@echo "Cleaning PyInstaller distpath: $(PYINSTALLER_DISTPATH)"
 	rm -rf $(PYINSTALLER_WORKPATH) $(PYINSTALLER_DISTPATH)
+
+build-torchvision-wheel:
+	./build/build_torchvision_wheel.sh
