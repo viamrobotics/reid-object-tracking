@@ -13,6 +13,5 @@ results*
 /src/models/
 
 
-
-
- 
+/pyinstaller_build/
+/pyinstaller_dist/

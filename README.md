@@ -146,34 +146,22 @@ Recomputes embeddings.
 
 This project includes a `Makefile` and a `build_installer.sh` script to automate the PyInstaller build process. PyInstaller is used to create standalone executables from the Python module scripts.
 
-### Available Commands
+### available `make` targets
 
 #### 1. `pyinstaller`
-This command builds the project using PyInstaller and custom build paths.
-
-##### How it works:
-- It runs the `build_installer.sh` script, passing the custom `WORKPATH` and `DISTPATH` environment variables that define where the build artifacts and the final executable will be placed.
-- If no values for `WORKPATH` and `DISTPATH` are specified, it uses the default paths defined in the `Makefile`:
-  - `WORKPATH`: `./pyinstaller_build`
-  - `DISTPATH`: `./pyinstaller_dist`
+This command builds the module executable using PyInstaller.
 
 ##### Usage:
-
-To build the project with the default paths:
 
 ```bash
 make pyinstaller
 ```
 
-To build the project with custom paths:
-```bash
-make pyinstaller WORKPATH=/path/to/custom_build DISTPATH=/path/to/custom_dist
-```
-
+This creates the PyInstaller executable under `./pyinstaller_dist`
 
 #### 2. `clean-pyinstaller`
 
-This command removes the directories used by PyInstaller to store the build artifacts and distribution files. It's helpful for cleaning up the project and starting fresh.
+This command removes the directories used by PyInstaller to store the build artifacts and distribution files.
 
 ##### Usage:
 
@@ -182,9 +170,3 @@ To build the project with the default paths:
 ```bash
 make clean-pyinstaller
 ```
-
-To clean up with custom paths:
-```bash
-make clean-pyinstaller WORKPATH=/path/to/custom_build DISTPATH=/path/to/custom_dist
-```
-
