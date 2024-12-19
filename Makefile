@@ -22,7 +22,7 @@ setup:
 # 	This install cuDnn	
 	bin/first_run.sh
 # 	This also pip install torch and torchvision
-	build-torchvision-wheel
+	$(MAKE) build-torchvision-wheel
 	./install_requirements.sh
 
 
