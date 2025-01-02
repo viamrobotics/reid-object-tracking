@@ -1,28 +1,62 @@
-.PHONY: pyinstaller clean-pyinstaller
+#TODO: ADD PHONY install-cudnn
 
-# Default values for workpath and distpath
-PYINSTALLER_WORKPATH = ./pyinstaller_build
-PYINSTALLER_DISTPATH = ./pyinstaller_dist
+MODULE_DIR=$(shell pwd)
+BUILD=$(MODULE_DIR)/build
 
-# The 'pyinstaller' target runs the build/build_pyinstaller.sh script
-pyinstaller:
-	WORKPATH=$(PYINSTALLER_WORKPATH) DISTPATH=$(PYINSTALLER_DISTPATH) ./build/build_pyinstaller.sh
+VENV_DIR=$(BUILD)/.venv
+PYTHON=$(VENV_DIR)/bin/python
 
-# The 'clean-pyinstaller' target removes the workpath and distpath directories
-clean-pyinstaller:
-	@echo "Cleaning PyInstaller workpath: $(PYINSTALLER_WORKPATH)"
-	@echo "Cleaning PyInstaller distpath: $(PYINSTALLER_DISTPATH)"
-	rm -rf $(PYINSTALLER_WORKPATH) $(PYINSTALLER_DISTPATH)
+PYTORCH_WHEEL=torch-2.5.0a0+872d972e41.nv24.08.17622132-cp310-cp310-linux_aarch64.whl
+PYTORCH_WHEEL_URL=https://developer.download.nvidia.com/compute/redist/jp/v61/pytorch/$(PYTORCH_WHEEL)
 
-build-torchvision-wheel:
-	./build/build_torchvision_wheel.sh
+TORCHVISION_REPO=https://github.com/pytorch/vision 
+TORCHVISION_WHEEL=torchvision-0.20.0a0+afc54f7-cp310-cp310-linux_aarch64.whl
+TORCHVISION_VERSION=0.20.0
 
-setup:
-	sudo apt-get install cmake python3-pip libopenblas-base libopenmpi-dev libomp-dev libjpeg-dev zlib1g-dev libpython3-dev libavcodec-dev libavformat-dev libswscale-dev
-# 	This install cuDnn	
+ONNXRUNTIME_WHEEL=onnxruntime_gpu-1.20.0-cp310-cp310-linux_aarch64.whl
+ONNXRUNTIME_WHEEL_URL=https://pypi.jetson-ai-lab.dev/jp6/cu126/+f/0c4/18beb3326027d/onnxruntime_gpu-1.20.0-cp310-cp310-linux_aarch64.whl#sha256=0c418beb3326027d83acc283372ae42ebe9df12f71c3a8c2e9743a4e323443a4
+
+REQUIREMENTS=requirements.txt
+
+PYINSTALLER_WORKPATH=$(BUILD)/pyinstaller_build
+PYINSTALLER_DISTPATH=$(BUILD)/pyinstaller_dist
+	
+$(VENV_DIR):
+	@echo "making venv"
+	python3 -m venv $(VENV_DIR)
+
+install-cudnn:
+	@echo "Installing cudnn 9"
 	bin/first_run.sh
-# 	This also pip install torch and torchvision
-	$(MAKE) build-torchvision-wheel
-	./install_requirements.sh
 
 
+$(BUILD)/$(ONNXRUNTIME_WHEEL): install-cudnn
+	wget $(ONNXRUNTIME_WHEEL_URL) -O $(BUILD)/$(ONNXRUNTIME_WHEEL)
+
+$(BUILD)/$(PYTORCH_WHEEL): install-cudnn
+	@echo "Making $(BUILD)/$(PYTORCH_WHEEL)"
+	wget  -P $(BUILD) $(PYTORCH_WHEEL_URL)
+
+$(BUILD)/$(TORCHVISION_WHEEL): $(VENV_DIR) $(BUILD)/$(PYTORCH_WHEEL)
+	@echo "Installing dependencies for TorchVision"
+	$(PYTHON) -m pip install --upgrade pip
+	$(PYTHON) -m pip install wheel
+	$(PYTHON) -m pip install 'numpy<2' $(BUILD)/$(PYTORCH_WHEEL)
+
+	@echo "Cloning Torchvision"
+	git clone --branch v${TORCHVISION_VERSION} --recursive --depth=1 $(TORCHVISION_REPO) $(BUILD)/torchvision
+
+	@echo "Building torchvision wheel"
+	cd $(BUILD)/torchvision && $(PYTHON) setup.py --verbose bdist_wheel --dist-dir ../
+
+$(PYINSTALLER_DISTPATH)/main: $(BUILD)/$(TORCHVISION_WHEEL) $(BUILD)/$(ONNXRUNTIME_WHEEL)
+	@echo "pyinstaller"
+	$(PYTHON) -m pip install -r $(REQUIREMENTS)
+	$(PYTHON) -m pip install 'numpy<2' $(BUILD)/$(PYTORCH_WHEEL)
+	$(PYTHON) -m pip install $(BUILD)/$(TORCHVISION_WHEEL)
+	$(PYTHON) -m pip install $(BUILD)/$(ONNXRUNTIME_WHEEL)
+	$(PYTHON) -m PyInstaller --workpath "$(PYINSTALLER_WORKPATH)" --distpath "$(PYINSTALLER_DISTPATH)" main.spec
+
+
+
+pyinstaller: $(PYINSTALLER_DISTPATH)/main
