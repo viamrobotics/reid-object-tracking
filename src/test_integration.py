@@ -75,5 +75,8 @@ class TestFaceReId:
 
         await service.close()
 
-        # test if len(tracks) ==1
-        # track = tracks[0] test that track.re-id-label is alex
+    @pytest.mark.asyncio
+    async def test_get_properties(self):
+        service = ReIDObjetcTracker("test")
+        p = await service.get_properties()
+        assert p == PASSING_PROPERTIES
