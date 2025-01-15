@@ -138,7 +138,8 @@ class StringAttribute(Attribute):
             )
         return value
 
-    # TODO: add __str__
+    def __str__(self):
+        return self.value
 
 
 class BoolAttribute(Attribute):
