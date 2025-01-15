@@ -1,19 +1,11 @@
-import logging
-import os
 from typing import Dict
 
 import pytest
 from google.protobuf.struct_pb2 import Struct
-from numpy import float32
-from viam.media.video import CameraMimeType
 from viam.proto.app.robot import ServiceConfig
 from viam.services.vision import Vision
 
-from src.config.config import ReIDObjetcTrackerConfig
 from src.re_id_tracker import ReIDObjetcTracker
-from src.tracker.track import Track
-from src.tracker.tracker import Tracker
-from src.utils import decode_image
 from tests.fake_camera import FakeCamera
 
 CAMERA_NAME = "fake-camera"
