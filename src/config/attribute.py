@@ -138,6 +138,8 @@ class StringAttribute(Attribute):
             )
         return value
 
+    # TODO: add __str__
+
 
 class BoolAttribute(Attribute):
     def __init__(
@@ -160,3 +162,6 @@ class BoolAttribute(Attribute):
                 )
             value = value.bool_value
         return value
+
+    def __bool__(self):
+        return self.value
