@@ -25,20 +25,25 @@ $(VENV_DIR):
 	@echo "making venv"
 	python3 -m venv $(VENV_DIR)
 
-install-cudnn:
-	@echo "Installing cudnn 9"
-	bin/first_run.sh
+# install-cudnn: 	
+# 	@echo "Installing cudnn 9"
+# 	bin/first_run.sh
 
-
-$(BUILD)/$(ONNXRUNTIME_WHEEL): install-cudnn
+$(BUILD)/$(ONNXRUNTIME_WHEEL):
 	wget $(ONNXRUNTIME_WHEEL_URL) -O $(BUILD)/$(ONNXRUNTIME_WHEEL)
 
-$(BUILD)/$(PYTORCH_WHEEL): install-cudnn
+onnxruntime-gpu-wheel: $(BUILD)/$(ONNXRUNTIME_WHEEL)
+
+$(BUILD)/$(PYTORCH_WHEEL):
 	@echo "Making $(BUILD)/$(PYTORCH_WHEEL)"
 	wget  -P $(BUILD) $(PYTORCH_WHEEL_URL)
 
+pytorch-wheel: $(BUILD)/$(PYTORCH_WHEEL)
+
 $(BUILD)/$(TORCHVISION_WHEEL): $(VENV_DIR) $(BUILD)/$(PYTORCH_WHEEL)
 	@echo "Installing dependencies for TorchVision"
+	bin/first_run.sh
+
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install wheel
 	$(PYTHON) -m pip install 'numpy<2' $(BUILD)/$(PYTORCH_WHEEL)
@@ -48,6 +53,8 @@ $(BUILD)/$(TORCHVISION_WHEEL): $(VENV_DIR) $(BUILD)/$(PYTORCH_WHEEL)
 
 	@echo "Building torchvision wheel"
 	cd $(BUILD)/torchvision && $(PYTHON) setup.py --verbose bdist_wheel --dist-dir ../
+
+torchvision-wheel: $(BUILD)/$(TORCHVISION_WHEEL)
 
 $(PYINSTALLER_DISTPATH)/main: $(BUILD)/$(TORCHVISION_WHEEL) $(BUILD)/$(ONNXRUNTIME_WHEEL)
 	@echo "pyinstaller"
@@ -60,3 +67,13 @@ $(PYINSTALLER_DISTPATH)/main: $(BUILD)/$(TORCHVISION_WHEEL) $(BUILD)/$(ONNXRUNTI
 
 
 pyinstaller: $(PYINSTALLER_DISTPATH)/main
+
+clean-pyinstaller:
+	rm -rf $(PYINSTALLER_DISTPATH) $(PYINSTALLER_WORKPATH)
+
+setup: torchvision-wheel onnxruntime-gpu-wheel
+
+
+clean-setup:
+	rm -rf $(BUILD)
+
