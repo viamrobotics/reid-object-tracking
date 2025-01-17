@@ -225,7 +225,7 @@ class OSBlock(nn.Module):
     """Omni-scale feature learning block with optional instance normalization."""
 
     def __init__(self, in_channels, out_channels, reduction=4, T=4,
-                 normalize_instance=False):
+                 normalize_instance=False, **kwargs):
         super(OSBlock, self).__init__()
         assert T >= 1
         assert out_channels >= reduction and out_channels % reduction == 0
@@ -263,9 +263,9 @@ class OSBlock(nn.Module):
 class OSBlockINin(OSBlock):
     """Omni-scale feature learning block with instance normalization."""
 
-    def __init__(self, in_channels, out_channels, reduction=4, T=4):
-        super(OSBlockINin, self).__init__(
-            in_channels, out_channels, reduction, T, normalize_instance=True)
+    def __init__(self, in_channels, out_channels, reduction=4, T=4, **kwargs):
+        super(OSBlockINin, self).__init__(in_channels, out_channels, reduction,
+                                          T, normalize_instance=True, **kwargs)
 
 
 ##########
