@@ -222,7 +222,7 @@ class ChannelGate(nn.Module):
 
 
 class OSBlock(nn.Module):
-    """Omni-scale feature learning block."""
+    """Omni-scale feature learning block with optional instance normalization."""
 
     def __init__(self, in_channels, out_channels, reduction=4, T=4,
                  normalize_instance=False):
