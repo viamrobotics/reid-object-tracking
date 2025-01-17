@@ -483,77 +483,28 @@ def init_pretrained_weights(model, key=""):
 ##########
 # Instantiation
 ##########
-def osnet_ain_x1_0(num_classes=1000, pretrained=True, loss="softmax", **kwargs):
-    model = OSNet(
-        num_classes,
-        blocks=[
-            [OSBlockINin, OSBlockINin],
-            [OSBlock, OSBlockINin],
-            [OSBlockINin, OSBlock],
-        ],
-        layers=[2, 2, 2],
-        channels=[64, 256, 384, 512],
-        loss=loss,
-        conv1_IN=True,
-        **kwargs,
-    )
-    if pretrained:
-        init_pretrained_weights(model, key="osnet_ain_x1_0")
-    return model
+def create_osnet_ain(channels, name):
+    def osnet_ain(num_classes=1000, pretrained=True, loss="softmax", **kwargs):
+        model = OSNet(
+            num_classes,
+            blocks=[
+                [OSBlockINin, OSBlockINin],
+                [OSBlock, OSBlockINin],
+                [OSBlockINin, OSBlock],
+            ],
+            layers=[2, 2, 2],
+            channels=channels,
+            loss=loss,
+            conv1_IN=True,
+            **kwargs,
+        )
+        if pretrained:
+            init_pretrained_weights(model, key=name)
+        return model
+    return osnet_ain
 
 
-def osnet_ain_x0_75(num_classes=1000, pretrained=True, loss="softmax", **kwargs):
-    model = OSNet(
-        num_classes,
-        blocks=[
-            [OSBlockINin, OSBlockINin],
-            [OSBlock, OSBlockINin],
-            [OSBlockINin, OSBlock],
-        ],
-        layers=[2, 2, 2],
-        channels=[48, 192, 288, 384],
-        loss=loss,
-        conv1_IN=True,
-        **kwargs,
-    )
-    if pretrained:
-        init_pretrained_weights(model, key="osnet_ain_x0_75")
-    return model
-
-
-def osnet_ain_x0_5(num_classes=1000, pretrained=True, loss="softmax", **kwargs):
-    model = OSNet(
-        num_classes,
-        blocks=[
-            [OSBlockINin, OSBlockINin],
-            [OSBlock, OSBlockINin],
-            [OSBlockINin, OSBlock],
-        ],
-        layers=[2, 2, 2],
-        channels=[32, 128, 192, 256],
-        loss=loss,
-        conv1_IN=True,
-        **kwargs,
-    )
-    if pretrained:
-        init_pretrained_weights(model, key="osnet_ain_x0_5")
-    return model
-
-
-def osnet_ain_x0_25(num_classes=1000, pretrained=True, loss="softmax", **kwargs):
-    model = OSNet(
-        num_classes,
-        blocks=[
-            [OSBlockINin, OSBlockINin],
-            [OSBlock, OSBlockINin],
-            [OSBlockINin, OSBlock],
-        ],
-        layers=[2, 2, 2],
-        channels=[16, 64, 96, 128],
-        loss=loss,
-        conv1_IN=True,
-        **kwargs,
-    )
-    if pretrained:
-        init_pretrained_weights(model, key="osnet_ain_x0_25")
-    return model
+osnet_ain_x1_0  = create_osnet_ain([64, 256, 384, 512], "osnet_ain_x1_0")
+osnet_ain_x0_75 = create_osnet_ain([48, 192, 288, 384], "osnet_ain_x0_75")
+osnet_ain_x0_5  = create_osnet_ain([32, 128, 192, 256], "osnet_ain_x0_5")
+osnet_ain_x0_25 = create_osnet_ain([16,  64,  96, 128], "osnet_ain_x0_25")
