@@ -224,8 +224,10 @@ class ChannelGate(nn.Module):
 class OSBlock(nn.Module):
     """Omni-scale feature learning block."""
 
-    def __init__(self, in_channels, out_channels, reduction=4, T=4):
+    def __init__(self, in_channels, out_channels, reduction=4, T=4,
+                 normalize_instance=False):
         super(OSBlock, self).__init__()
+        self._normalize_instance = normalize_instance
         assert T >= 1
         assert out_channels >= reduction and out_channels % reduction == 0
         mid_channels = out_channels // reduction
@@ -239,6 +241,10 @@ class OSBlock(nn.Module):
         self.downsample = None
         if in_channels != out_channels:
             self.downsample = Conv1x1Linear(in_channels, out_channels)
+        if self._normalize_instance:
+            self.IN = nn.InstanceNorm2d(out_channels, affine=True)
+        else:
+            self.IN = None
 
     def forward(self, x):
         identity = x
@@ -248,6 +254,8 @@ class OSBlock(nn.Module):
             x2_t = conv2_t(x1)
             x2 = x2 + self.gate(x2_t)
         x3 = self.conv3(x2)
+        if self._normalize_instance:
+            x3 = self.IN(x3)  # IN inside residual
         if self.downsample is not None:
             identity = self.downsample(identity)
         out = x3 + identity
