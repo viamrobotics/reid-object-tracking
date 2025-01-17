@@ -227,7 +227,6 @@ class OSBlock(nn.Module):
     def __init__(self, in_channels, out_channels, reduction=4, T=4,
                  normalize_instance=False):
         super(OSBlock, self).__init__()
-        self._normalize_instance = normalize_instance
         assert T >= 1
         assert out_channels >= reduction and out_channels % reduction == 0
         mid_channels = out_channels // reduction
@@ -241,10 +240,10 @@ class OSBlock(nn.Module):
         self.downsample = None
         if in_channels != out_channels:
             self.downsample = Conv1x1Linear(in_channels, out_channels)
-        if self._normalize_instance:
+        if normalize_instance:
             self.IN = nn.InstanceNorm2d(out_channels, affine=True)
         else:
-            self.IN = None
+            self.IN = lambda x: x  # When normalizing, don't actually do it
 
     def forward(self, x):
         identity = x
@@ -254,47 +253,19 @@ class OSBlock(nn.Module):
             x2_t = conv2_t(x1)
             x2 = x2 + self.gate(x2_t)
         x3 = self.conv3(x2)
-        if self._normalize_instance:
-            x3 = self.IN(x3)  # IN inside residual
+        x3 = self.IN(x3)  # IN inside residual, if we're supposed to
         if self.downsample is not None:
             identity = self.downsample(identity)
         out = x3 + identity
         return F.relu(out)
 
 
-class OSBlockINin(nn.Module):
+class OSBlockINin(OSBlock):
     """Omni-scale feature learning block with instance normalization."""
 
     def __init__(self, in_channels, out_channels, reduction=4, T=4):
-        super(OSBlockINin, self).__init__()
-        assert T >= 1
-        assert out_channels >= reduction and out_channels % reduction == 0
-        mid_channels = out_channels // reduction
-
-        self.conv1 = Conv1x1(in_channels, mid_channels)
-        self.conv2 = nn.ModuleList()
-        for t in range(1, T + 1):
-            self.conv2 += [LightConvStream(mid_channels, mid_channels, t)]
-        self.gate = ChannelGate(mid_channels)
-        self.conv3 = Conv1x1Linear(mid_channels, out_channels, bn=False)
-        self.downsample = None
-        if in_channels != out_channels:
-            self.downsample = Conv1x1Linear(in_channels, out_channels)
-        self.IN = nn.InstanceNorm2d(out_channels, affine=True)
-
-    def forward(self, x):
-        identity = x
-        x1 = self.conv1(x)
-        x2 = 0
-        for conv2_t in self.conv2:
-            x2_t = conv2_t(x1)
-            x2 = x2 + self.gate(x2_t)
-        x3 = self.conv3(x2)
-        x3 = self.IN(x3)  # IN inside residual
-        if self.downsample is not None:
-            identity = self.downsample(identity)
-        out = x3 + identity
-        return F.relu(out)
+        super(OSBlockINin, self).__init__(
+            in_channels, out_channels, reduction, T, normalize_instance=True)
 
 
 ##########
