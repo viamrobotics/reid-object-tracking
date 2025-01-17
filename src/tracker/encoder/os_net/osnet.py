@@ -224,7 +224,7 @@ class ChannelGate(nn.Module):
 class OSBlock(nn.Module):
     """Omni-scale feature learning block."""
 
-    def __init__(self, in_channels, out_channels, reduction=4, T=4, **kwargs):
+    def __init__(self, in_channels, out_channels, reduction=4, T=4):
         super(OSBlock, self).__init__()
         assert T >= 1
         assert out_channels >= reduction and out_channels % reduction == 0
@@ -257,7 +257,7 @@ class OSBlock(nn.Module):
 class OSBlockINin(nn.Module):
     """Omni-scale feature learning block with instance normalization."""
 
-    def __init__(self, in_channels, out_channels, reduction=4, T=4, **kwargs):
+    def __init__(self, in_channels, out_channels, reduction=4, T=4):
         super(OSBlockINin, self).__init__()
         assert T >= 1
         assert out_channels >= reduction and out_channels % reduction == 0
