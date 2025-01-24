@@ -94,57 +94,81 @@ Recomputes embeddings.
 
 ## Supplementaries
 
-### TrackerConfig
+### General attributes
 
 | Name                      | Type   | Inclusion | Default       | Description                                                                                    |
 | ------------------------- | ------ | --------- | ------------- | ---------------------------------------------------------------------------------------------- |
-| `lambda_value`            | float  | Optional  | `0.95`        | The lambda value is meant to adjust the contribution of the re-id matching and the IoU. The distance between two tracks equals: λ * feature_dist + (1 - λ) * (1 - IoU_score). |
+| `camera_name` | string | **Required** |         | Camera name to be used as input for tracking.               |
+| `path_to_database` | string | **Required** |         | Path to the database where tracking information is stored.                                       |
+| `lambda_value`            | float  | Optional  | `0.95`        | The lambda value is meant to adjust the contribution of the re-id and the IoU matchings. The distance between two tracks equals: λ * feature_dist + (1 - λ) * (1 - IoU_score). |
 | `max_age_track`           | int    | Optional  | `1e3`         | Maximum age (in frames) for a track to be considered active. Ranges from 0 to 1e5.             |
-| `min_distance_threshold`  | float  | Optional  | `0.3`         | Minimum distance threshold for considering two features as distinct. Values range from 0 to 5. |
+| `min_distance_threshold`  | float  | Optional  | `0.3`         | Minimum distance threshold for considering two tracks as distinct. Values range from 0 to 5. |
 | `feature_distance_metric` | string | Optional  | `'euclidean'` | Metric used for calculating feature distance. Options include `cosine` and `euclidean`.        |
 | `cooldown_period_s`       | float  | Optional  | `5`           | Duration for which the trigger is on.`new_object_detected`.                                          |
-| `start_fresh`             | bool   | Optional  | `False`       | Whether or not to load the tracks from the database.                                     |
 | `re_id_threshold`         | float  | Optional  | `0.3`         | Threshold for determining whether two persons match based on body features similarity.    |
-| `min_track_persistence`   | int    | Optional  | `10`          | Minimum number of frames a track must persist to be considered valid.                         |
-| `max_frequency`           | float  | Optional  | `10`          | Frequency at which the tracking steps are performed. |
-| `save_to_db`              | bool   | Optional  | `True`        | Indicates whether tracking information should be saved to the database.                       |
-| `path_to_known_persons`   | string | Optional  | `None`        | Path to the database containing pictures of entire persons.                |
+| `min_track_persistence`   | int    | Optional  | `10`          | Minimum number of frames a track candidate must persist before beinfg promoted to a track.                         |
+| `max_frequency_hz`           | float  | Optional  | `10`          | Frequency at which the tracking steps are performed. |
+| `save_to_db`              | bool   | Optional  | `True`        | Indicates whether tracks should be saved to the database.                       |
+| `save_period`      | int    | Optional     | `20`    | Interval (in number of tracking steps) when tracks are saved to the database.               |
 
-### DetectorConfig
+
+| `start_fresh`             | bool   | Optional  | `False`       | Whether or not to load the tracks from the database at `reconfigure()`.                             |
+| `path_to_known_persons`   | string | Optional  | `None`        | Path to the database containing pictures of entire persons. If the directory does not exist it will be created at `reconfigure()`.            |
+
+### Person detector attributes
 
 | Name                              | Type   | Inclusion    | Default                                 | Description                                                                                                     |
 | --------------------------------- | ------ | ------------ | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `detector_model_name`             | string | Optional| `'fasterrcnn_mobilenet_v3_large_320_fpn'` | Name of the model used for detection. Only option at the moment. |
-| `detection_threshold`             | float  | Optional     | `0.6`                                   | Confidence threshold for detecting objects, with values ranging from 0.0 to 1.0.                                |
+| `detection_threshold`             | float  | Optional     | `0.8`                                   | Confidence threshold for detecting objects, with values ranging from 0.0 to 1.0.                                |
 | `detector_device`                 | string | Optional     | `'cpu'`                                 | Device on which the detection model will run. Options are `cpu` and `gpu`.                                      |
 
 
-### FeatureEncoderConfig
+### Feature encoder attributes
 
 | Name                      | Type   | Inclusion | Default        | Description                                                                                                       |
 | ------------------------- | ------ | --------- | -------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `feature_extractor_model` | string | Optional  | `'osnet_ain_x1_0'` | Name of the model used for feature extraction. Only option at the moment.|
 | `feature_encoder_device`  | string | Optional  | `'cuda'`        | Device on which the feature encoder will run. Options are `cpu` and `cuda`.                                        |
 
-### FaceIdConfig
+### Face re-identification attributes
 
 | Name                      | Type   | Inclusion | Default                             | Description                                                                                                       |
 | ------------------------- | ------ | --------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `path_to_known_faces`     | string | Optional  | `None`                              | Path to a file or database containing images or embeddings of known faces.                                       |
+| `path_to_known_faces`     | string | Optional  | `None`                              | Path to a file or database containing images or embeddings of known faces. If the directory does not exist it will be created at `reconfigure()`. See [here](#example-of-directory-tree) for an example directory tree for known faces and supported image formats.                                   |
 | `face_detector_device`    | string | Optional  | `'cpu'`                             | Device on which the face detector will run. Options are `cpu` and `cuda`.                                         |
 | `face_detector_model`     | string | Optional  | `'ultraface_version-RFB-320-int8'` | Name of the model used for face detection. Only option at the moment.                                                                        |
 | `face_detection_threshold`| float  | Optional  | `0.9`                               | Confidence threshold for detecting faces, with values ranging from 0.0 to 1.0.                                   |
 | `face_feature_extractor_model` | string | Optional | `'facenet'` | Model used for extracting features from detected faces for identification. Only option at the moment.                                      |
-| `cosine_id_threshold`     | float  | Optional  | `0.3`                               | Threshold for determining face identity matches using cosine similarity.                                              |
+| `cosine_id_threshold`     | float  | Optional  | `0.3`                               | Threshold for determining face identity matches using cosine similarity. Both cosine and euclidean distances should be under threshold for faces to be considered as match.                                          |
 | `euclidean_id_threshold`  | float  | Optional  | `0.9`                               | Threshold for determining face identity matches using Euclidean distance.                                             |
 
-### TracksManagerConfig
 
-| Name               | Type   | Inclusion    | Default | Description                                                                                     |
-| ------------------ | ------ | ------------ | ------- | ------------------------------------------------------------------------------------------------ |
-| `path_to_database` | string | **Required** |         | Path to the database where tracking information is stored.                                       |
-| `save_period`      | int    | Optional     | `20`    | Interval (in number of tracking steps) when tracks are saved to the database.               |
 
+#### Example of directory tree
+
+In the example below, all faces detected in any pictures within the directory `French_Team` will have an embedding associated with the label `French_Team`. The supported image formats for known faces are PNG and JPEG.
+```
+path
+└── to
+    └── known_faces
+        └── Zinedine_Zidane
+        │   └── zz_1.png
+        │   └── zz_2.jpeg
+        │   └── zz_3.jpeg
+        │ 
+        └── Jacques_Chirac
+        │   └── jacques_1.jpeg
+        │
+        └── French_Team
+        |   └── ribery.jpeg
+        |   └── vieira.png
+        |   └── thuram.jpeg
+        |   └── group_picture.jpeg
+        │ 
+        └── Italian_Team
+            └── another_group_picture.png
+```
 
 ## PyInstaller Build Process
 
