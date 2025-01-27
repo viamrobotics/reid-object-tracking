@@ -43,6 +43,7 @@ pytorch-wheel: $(BUILD)/$(PYTORCH_WHEEL)
 $(BUILD)/$(TORCHVISION_WHEEL): $(VENV_DIR) $(BUILD)/$(PYTORCH_WHEEL)
 	@echo "Installing dependencies for TorchVision"
 	bin/first_run.sh
+	bin/install_cusparselt.sh
 
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install wheel

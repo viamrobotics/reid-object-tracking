@@ -1,0 +1,75 @@
+#!/bin/bash
+
+echo "Installing the required libraries for the 're-id-object-tracking' module..."
+
+# Function to check if libcusparselt.so is present
+check_cusparse() {
+    echo "Checking if libcusparselt.so is installed..."
+    if ldconfig -p | grep -q 'libcusparselt.so'; then
+        echo "libcusparselt.so is already installed."
+        return 0
+    else
+        echo "libcusparselt.so is not installed."
+        return 1
+    fi
+}
+
+# Function to install cuSPARSE
+install_cusparse() {
+    echo "Starting the installation of cuSPARSE..."
+
+    # Check if CUDA keyring is already installed
+    echo "Checking if cuda-keyring is installed..."
+    if dpkg -l | grep -q cuda-keyring; then
+        echo "cuda-keyring is already installed. Skipping download and installation."
+    else
+        # Download the CUDA keyring package
+        echo "Downloading CUDA keyring package..."
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/arm64/cuda-keyring_1.1-1_all.deb
+
+        # Check if the download was successful
+        if [ $? -ne 0 ]; then
+            echo "Error: Download failed. Please check your internet connection and the URL."
+            exit 1
+        else
+            echo "CUDA keyring package downloaded successfully."
+        fi
+
+        # Install the CUDA keyring package
+        echo "Installing the CUDA keyring package..."
+        sudo dpkg -i cuda-keyring_1.1-1_all.deb
+
+        # Check if the keyring installation was successful
+        if [ $? -ne 0 ]; then
+            echo "Error: Failed to install the CUDA keyring package."
+            exit 1
+        else
+            echo "CUDA keyring package installed successfully."
+        fi
+    fi
+
+    # Update package lists
+    echo "Updating package lists..."
+    sudo apt-get update
+
+    # Install cuSPARSE libraries
+    echo "Installing cuSPARSE libraries..."
+    sudo apt-get -y install libcusparselt0 libcusparselt-dev
+
+    # Check if the installation was successful
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to install cuSPARSE libraries."
+        exit 1
+    else
+        echo "cuSPARSE libraries installed successfully."
+    fi
+}
+
+# Main script execution
+if ! check_cusparse; then
+    install_cusparse
+else
+    echo "No installation needed."
+fi
+
+echo "All required libraries for the 're-id-object-tracking' module have been installed successfully."
