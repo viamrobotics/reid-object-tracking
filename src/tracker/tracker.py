@@ -117,6 +117,7 @@ class Tracker:
         if self.background_task is not None:
             await self.background_task  # Wait for the background task to finish
 
+    def import_tracks_from_tracks_manager(self):
         self.tracks = self.tracks_manager.get_tracks_on_disk()
 
     def import_category_count_from_tracks_manager(self):
