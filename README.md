@@ -103,17 +103,15 @@ Recomputes embeddings.
 | `lambda_value`            | float  | Optional  | `0.95`        | The lambda value is meant to adjust the contribution of the re-id and the IoU matchings. The distance between two tracks equals: λ * feature_dist + (1 - λ) * (1 - IoU_score). |
 | `max_age_track`           | int    | Optional  | `1e3`         | Maximum age (in frames) for a track to be considered active. Ranges from 0 to 1e5.             |
 | `min_distance_threshold`  | float  | Optional  | `0.3`         | Minimum distance threshold for considering two tracks as distinct. Values range from 0 to 5. |
-| `feature_distance_metric` | string | Optional  | `'euclidean'` | Metric used for calculating feature distance. Options include `cosine` and `euclidean`.        |
+| `feature_distance_metric` | string | Optional  | `'cosine'` | Metric used for calculating feature distance. Options include `cosine` and `euclidean`. Refer to [torch-re-id model zoo](https://kaiyangzhou.github.io/deep-person-reid/MODEL_ZOO.html) to select the metric that matches your model.|
 | `cooldown_period_s`       | float  | Optional  | `5`           | Duration for which the trigger is on.`new_object_detected`.                                          |
 | `re_id_threshold`         | float  | Optional  | `0.3`         | Threshold for determining whether two persons match based on body features similarity.    |
 | `min_track_persistence`   | int    | Optional  | `10`          | Minimum number of frames a track candidate must persist before beinfg promoted to a track.                         |
 | `max_frequency_hz`           | float  | Optional  | `10`          | Frequency at which the tracking steps are performed. |
 | `save_to_db`              | bool   | Optional  | `True`        | Indicates whether tracks should be saved to the database.                       |
 | `save_period`      | int    | Optional     | `20`    | Interval (in number of tracking steps) when tracks are saved to the database.               |
-
-
 | `start_fresh`             | bool   | Optional  | `False`       | Whether or not to load the tracks from the database at `reconfigure()`.                             |
-| `path_to_known_persons`   | string | Optional  | `None`        | Path to the database containing pictures of entire persons. If the directory does not exist it will be created at `reconfigure()`.            |
+| `path_to_known_persons`   | string | Optional  | `None`        | Path to the database containing pictures of entire persons. If the directory does not exist it will be created at `reconfigure()`. Refer [example directory tree](#example-of-directory-tree) to see how to add pictures of known persons and associate labels with the persons.            |
 
 ### Person detector attributes
 
@@ -135,7 +133,7 @@ Recomputes embeddings.
 
 | Name                      | Type   | Inclusion | Default                             | Description                                                                                                       |
 | ------------------------- | ------ | --------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `path_to_known_faces`     | string | Optional  | `None`                              | Path to a file or database containing images or embeddings of known faces. If the directory does not exist it will be created at `reconfigure()`. See [here](#example-of-directory-tree) for an example directory tree for known faces and supported image formats.                                   |
+| `path_to_known_faces`     | string | Optional  | `None`                              | Path to a file or database containing images or embeddings of known faces. If the directory does not exist it will be created at `reconfigure()`. Refer [example directory tree](#example-of-directory-tree) to see how to add pictures of known faces and associate labels with the faces. |
 | `face_detector_device`    | string | Optional  | `'cpu'`                             | Device on which the face detector will run. Options are `cpu` and `cuda`.                                         |
 | `face_detector_model`     | string | Optional  | `'ultraface_version-RFB-320-int8'` | Name of the model used for face detection. Only option at the moment.                                                                        |
 | `face_detection_threshold`| float  | Optional  | `0.9`                               | Confidence threshold for detecting faces, with values ranging from 0.0 to 1.0.                                   |
@@ -145,9 +143,9 @@ Recomputes embeddings.
 
 
 
-#### Example of directory tree
+### Example of directory tree
 
-In the example below, all faces detected in any pictures within the directory `French_Team` will have an embedding associated with the label `French_Team`. The supported image formats for known faces are PNG and JPEG.
+In the example below, all persons (or faces) detected in any pictures within the directory `French_Team` will have an embedding associated with the label `French_Team`. The supported image formats for known faces are PNG and JPEG.
 ```
 path
 └── to
@@ -169,7 +167,7 @@ path
         └── Italian_Team
             └── another_group_picture.png
 ```
-
+<!-- 
 ## PyInstaller Build Process
 
 This project includes a `Makefile` and a `build_installer.sh` script to automate the PyInstaller build process. PyInstaller is used to create standalone executables from the Python module scripts.
@@ -197,4 +195,4 @@ To build the project with the default paths:
 
 ```bash
 make clean-pyinstaller
-```
+``` -->

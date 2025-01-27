@@ -47,7 +47,7 @@ class TrackerConfig:
         self.feature_distance_metric = StringAttribute(
             field_name="feature_distance_metric",
             config=config,
-            default_value="euclidean",
+            default_value="cosine",
             allowlist=["cosine", "euclidean"],
         )
 
