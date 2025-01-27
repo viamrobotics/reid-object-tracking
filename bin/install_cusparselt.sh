@@ -1,15 +1,20 @@
 #!/bin/bash
 
-echo "Installing the required libraries for the 're-id-object-tracking' module..."
+echo "Installing cuSPARSELt..."
 
-# Function to check if libcusparselt.so is present
+# Function to check if libcusparselt packages are installed
 check_cusparse() {
-    echo "Checking if libcusparselt.so is installed..."
-    if ldconfig -p | grep -q 'libcusparselt.so'; then
-        echo "libcusparselt.so is already installed."
-        return 0
+    echo "Checking if libcusparselt0 and libcusparselt-dev are installed..."
+    if dpkg -l | grep -q 'libcusparselt0'; then
+        if dpkg -l | grep -q 'libcusparselt-dev'; then
+            echo "libcusparselt0 and libcusparselt-dev are already installed."
+            return 0
+        else
+            echo "libcusparselt-dev is missing."
+            return 1
+        fi
     else
-        echo "libcusparselt.so is not installed."
+        echo "libcusparselt0 is missing."
         return 1
     fi
 }
