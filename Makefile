@@ -58,7 +58,7 @@ $(BUILD)/$(TORCHVISION_WHEEL): $(VENV_DIR) $(BUILD)/$(PYTORCH_WHEEL)
 torchvision-wheel: $(BUILD)/$(TORCHVISION_WHEEL)
 
 $(PYINSTALLER_DISTPATH)/main: $(BUILD)/$(TORCHVISION_WHEEL) $(BUILD)/$(ONNXRUNTIME_WHEEL)
-	@echo "pyinstaller"
+	@echo " Building pyinstaller executable"
 	$(PYTHON) -m pip install -r $(REQUIREMENTS)
 	$(PYTHON) -m pip install 'numpy<2' $(BUILD)/$(PYTORCH_WHEEL)
 	$(PYTHON) -m pip install $(BUILD)/$(TORCHVISION_WHEEL)
