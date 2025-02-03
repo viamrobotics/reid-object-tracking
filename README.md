@@ -146,22 +146,16 @@ Recomputes embeddings.
 
 This project includes a `Makefile` script to automate the PyInstaller build process. PyInstaller is used to create standalone executables from the Python module scripts.
 
-### available `make` targets
-
-#### 1. `make setup`
+####  `make setup`
 
 1. install system dependencies (cuDNN and cuSPARSELt)
 2. create venv environment (under `./build/.venv`)
 3. Get python packages wheel files - Torch, ONNXRuntime-GPU, Torchvision (built from source)
 
-#### 2. `make pyinstaller`
+Cleaned with `make clean-pyinstaller`
+
+#### `make pyinstaller`
 This command builds the module executable using PyInstaller.
-
-##### Usage:
-
-```bash
-make pyinstaller
-```
 
 This creates the PyInstaller executable under `./build/pyinstaller_dist`.
 To upload to viam registry:
@@ -171,15 +165,4 @@ tar -czvf archive.tar.gz meta.json main first_run.sh  #needs to be on the same l
 viam module upload --version 0.0.0-rc0 --platform linux/arm64 --tags 'jetpack:6' archive.tar.gz
 ```
 
-
-#### 2. `clean-pyinstaller`
-
-This command removes the directories used by PyInstaller to store the build artifacts and distribution files.
-
-##### Usage:
-
-To build the project with the default paths:
-
-```bash
-make clean-pyinstaller
-```
+Cleaned with `make clean-pyinstaller`
