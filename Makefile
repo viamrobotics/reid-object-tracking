@@ -22,13 +22,9 @@ PYINSTALLER_WORKPATH=$(BUILD)/pyinstaller_build
 PYINSTALLER_DISTPATH=$(BUILD)/pyinstaller_dist
 	
 $(VENV_DIR):
-	@echo "making venv"
+	@echo "creating python venv"
 	python3 -m venv $(VENV_DIR)
-
-# install-cudnn: 	
-# 	@echo "Installing cudnn 9"
-# 	bin/first_run.sh
-
+	
 $(BUILD)/$(ONNXRUNTIME_WHEEL):
 	wget $(ONNXRUNTIME_WHEEL_URL) -O $(BUILD)/$(ONNXRUNTIME_WHEEL)
 

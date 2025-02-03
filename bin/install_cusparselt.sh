@@ -34,7 +34,7 @@ install_cusparse() {
 
         # Check if the download was successful
         if [ $? -ne 0 ]; then
-            echo "Error: Download failed. Please check your internet connection and the URL."
+            echo "Error: Download failed. Please check your internet connection."
             exit 1
         else
             echo "CUDA keyring package downloaded successfully."
