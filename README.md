@@ -142,13 +142,19 @@ Recomputes embeddings.
 | `save_period`      | int    | Optional     | `20`    | Interval (in number of tracking steps) when tracks are saved to the database.               |
 
 
-## PyInstaller Build Process
+## Makefile (arm-jetson machines only)
 
-This project includes a `Makefile` and a `build_installer.sh` script to automate the PyInstaller build process. PyInstaller is used to create standalone executables from the Python module scripts.
+This project includes a `Makefile` script to automate the PyInstaller build process. PyInstaller is used to create standalone executables from the Python module scripts.
 
 ### available `make` targets
 
-#### 1. `pyinstaller`
+#### 1. `make setup`
+
+1. install system dependencies (cuDNN and cuSPARSELt)
+2. create venv environment (under `./build/.venv`)
+3. Get python packages wheel files - Torch, ONNXRuntime-GPU, Torchvision (built from source)
+
+#### 2. `make pyinstaller`
 This command builds the module executable using PyInstaller.
 
 ##### Usage:
@@ -157,7 +163,14 @@ This command builds the module executable using PyInstaller.
 make pyinstaller
 ```
 
-This creates the PyInstaller executable under `./pyinstaller_dist`
+This creates the PyInstaller executable under `./build/pyinstaller_dist`.
+To upload to viam registry:
+```bash
+viam login
+tar -czvf archive.tar.gz meta.json main first_run.sh  #needs to be on the same level
+viam module upload --version 0.0.0-rc0 --platform linux/arm64 --tags 'jetpack:6' archive.tar.gz
+```
+
 
 #### 2. `clean-pyinstaller`
 
