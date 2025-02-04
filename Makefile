@@ -1,4 +1,4 @@
-#TODO: ADD PHONY install-cudnn
+.PHONY: setup clean pyinstaller clean-pyinstaller onnxruntime-gpu-wheel pytorch-wheel torchvision-wheel
 
 MODULE_DIR=$(shell pwd)
 BUILD=$(MODULE_DIR)/build
@@ -70,7 +70,6 @@ clean-pyinstaller:
 
 setup: torchvision-wheel onnxruntime-gpu-wheel
 
-
-clean-setup:
+clean:
 	rm -rf $(BUILD)
 
