@@ -76,5 +76,3 @@ if ! check_cusparse; then
 else
     echo "No installation needed."
 fi
-
-echo "All required libraries for the 're-id-object-tracking' module have been installed successfully."

@@ -22,7 +22,7 @@ PYINSTALLER_WORKPATH=$(BUILD)/pyinstaller_build
 PYINSTALLER_DISTPATH=$(BUILD)/pyinstaller_dist
 	
 $(VENV_DIR):
-	@echo "creating python venv"
+	@echo "Building python venv"
 	sudo apt install python3.10-venv
 	sudo apt install python3-pip
 	python3 -m venv $(VENV_DIR)
