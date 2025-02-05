@@ -23,6 +23,8 @@ PYINSTALLER_DISTPATH=$(BUILD)/pyinstaller_dist
 	
 $(VENV_DIR):
 	@echo "creating python venv"
+	sudo apt install python3.10-venv
+	sudo apt install python3-pip
 	python3 -m venv $(VENV_DIR)
 	
 $(BUILD)/$(ONNXRUNTIME_WHEEL):
@@ -71,5 +73,5 @@ clean-pyinstaller:
 setup: torchvision-wheel onnxruntime-gpu-wheel
 
 clean:
-	rm -rf $(BUILD)
+	rm -rf $(BUILD) cuda-keyring_1.1-1_all.deb
 

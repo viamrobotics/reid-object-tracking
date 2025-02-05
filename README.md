@@ -152,7 +152,7 @@ This project includes a `Makefile` script to automate the PyInstaller build proc
 2. create venv environment (under `./build/.venv`)
 3. Get python packages wheel files - Torch, ONNXRuntime-GPU, Torchvision (built from source)
 
-Cleaned with `make clean-pyinstaller`
+Cleaned with `make clean` (this also deletes pyinstaller build directory)
 
 #### `make pyinstaller`
 This command builds the module executable using PyInstaller.
