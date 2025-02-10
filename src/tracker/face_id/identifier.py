@@ -133,8 +133,13 @@ class FaceIdentifier:
             label_path = os.path.join(path_to_known_faces, directory)
             embeddings = []
             for file in os.listdir(label_path):
-                if any(file.lower().endswith(suffix)
-                       for suffix in (".jpg", ".jpeg", ".png")):
+                if not any(file.lower().endswith(suffix)
+                           for suffix in (".jpg", ".jpeg", ".png")):
+                    LOGGER.warning(
+                        "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",  # pylint: disable=line-too-long
+                        file,
+                    )
+                else:
                     im = Image.open(label_path + "/" + file).convert(
                         "RGB"
                     )  # convert in RGB because png are RGBA
@@ -151,11 +156,6 @@ class FaceIdentifier:
                     # TODO: check if there is only one face here
                     embed = self.feature_extractor.get_embedding(face)
                     embeddings.append(embed)
-                else:
-                    LOGGER.warning(
-                        "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",  # pylint: disable=line-too-long
-                        file,
-                    )
 
             if not embeddings:
                 raise NoFacesDetectedError(
