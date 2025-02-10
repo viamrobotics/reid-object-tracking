@@ -139,23 +139,24 @@ class FaceIdentifier:
                         "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",  # pylint: disable=line-too-long
                         file,
                     )
-                else:
-                    im = Image.open(label_path + "/" + file).convert(
-                        "RGB"
-                    )  # convert in RGB because png are RGBA
-                    img_array = np.array(im)
-                    uint8_tensor = (
-                        torch.from_numpy(img_array).permute(2, 0, 1).contiguous()
-                    )
-                    float32_tensor = uint8_tensor.to(dtype=torch.float32)
+                    continue
 
-                    float32_tensor = float32_tensor.to(self.device)
-                    face = self.detector.extract_face(float32_tensor)
-                    if self.debug:
-                        save_tensor(face, f"{directory}.jpeg")
-                    # TODO: check if there is only one face here
-                    embed = self.feature_extractor.get_embedding(face)
-                    embeddings.append(embed)
+                im = Image.open(label_path + "/" + file).convert(
+                    "RGB"
+                )  # convert in RGB because png are RGBA
+                img_array = np.array(im)
+                uint8_tensor = (
+                    torch.from_numpy(img_array).permute(2, 0, 1).contiguous()
+                )
+                float32_tensor = uint8_tensor.to(dtype=torch.float32)
+
+                float32_tensor = float32_tensor.to(self.device)
+                face = self.detector.extract_face(float32_tensor)
+                if self.debug:
+                    save_tensor(face, f"{directory}.jpeg")
+                # TODO: check if there is only one face here
+                embed = self.feature_extractor.get_embedding(face)
+                embeddings.append(embed)
 
             if not embeddings:
                 raise NoFacesDetectedError(
