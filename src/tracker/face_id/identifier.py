@@ -32,6 +32,9 @@ from src.tracker.utils import save_tensor
 LOGGER = getLogger(__name__)
 
 
+class NoFacesDetectedError(Exception): pass
+
+
 class FaceIdentifier:
     """
     A class to identify known faces by computing and comparing embeddings to known embeddings.
@@ -157,4 +160,9 @@ class FaceIdentifier:
                         file,
                     )
 
+            if not embeddings:
+                raise NoFacesDetectedError(
+                    f"Unable to recognize any face for supposedly-known "
+                    f"embedding {directory}!"
+                )
             self.known_embeddings[directory] = embeddings
