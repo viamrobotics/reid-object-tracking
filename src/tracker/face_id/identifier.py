@@ -149,6 +149,10 @@ class FaceIdentifier:
 
                 float32_tensor = float32_tensor.to(self.device)
                 face = self.detector.extract_face(float32_tensor)
+                if face is None:
+                    LOGGER.warning(f"Unable to find face in {directory}/{file}")
+                    continue
+
                 if self.debug:
                     save_tensor(face, f"{directory}.jpeg")
                 # TODO: check if there is only one face here
