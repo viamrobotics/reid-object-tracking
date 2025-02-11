@@ -546,8 +546,13 @@ class Tracker:
             label_path = os.path.join(self.path_to_known_persons, directory)
             embeddings = []
             for file in os.listdir(label_path):
-                if any(file.lower().endswith(suffix)
-                       for suffix in (".jpg", ".jpeg", ".png")):
+                if not any(file.lower().endswith(suffix)
+                           for suffix in (".jpg", ".jpeg", ".png")):
+                    LOGGER.warning(
+                        "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",  # pylint: disable=line-too-long
+                        file,
+                    )
+                else:
                     im = Image.open(label_path + "/" + file).convert("RGB")
                     img_obj = ImageObject(viam_image=None, pil_image=im)
 
@@ -562,11 +567,6 @@ class Tracker:
                     )
                     list_of_tensors = list(batched_features_vectors.unbind(dim=0))
                     embeddings += list_of_tensors
-                else:
-                    LOGGER.warning(
-                        "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",  # pylint: disable=line-too-long
-                        file,
-                    )
 
             self.labeled_person_embeddings[directory] = embeddings
 
