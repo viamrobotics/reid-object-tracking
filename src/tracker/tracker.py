@@ -21,6 +21,7 @@ from src.tracker.encoder.feature_encoder import FeatureEncoder, get_encoder
 from src.tracker.face_id.identifier import FaceIdentifier
 from src.tracker.track import Track
 from src.tracker.tracks_manager import TracksManager
+from src.tracker.utils import NoFacesDetectedError
 from src.utils import log_cost_matrix, log_tracks_info
 
 LOGGER = getLogger(__name__)
@@ -569,6 +570,11 @@ class Tracker:
                 list_of_tensors = list(batched_features_vectors.unbind(dim=0))
                 embeddings += list_of_tensors
 
+            if not embeddings:
+                raise NoFacesDetectedError(
+                    f"Unable to recognize any face for supposedly-known "
+                    f"person embedding {directory}!"
+                )
             self.labeled_person_embeddings[directory] = embeddings
 
     def identify_tracks(self, track_ids):

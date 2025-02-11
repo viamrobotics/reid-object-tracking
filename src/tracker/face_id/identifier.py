@@ -27,12 +27,9 @@ from src.tracker.face_id.face_net.facenet_extractor import FaceFeaturesExtractor
 # from src.models import utils
 # from src.utils import check_ir, dist_to_conf_sigmoid
 from src.tracker.track import Track
-from src.tracker.utils import save_tensor
+from src.tracker.utils import NoFacesDetectedError, save_tensor
 
 LOGGER = getLogger(__name__)
-
-
-class NoFacesDetectedError(Exception): pass
 
 
 class FaceIdentifier:
