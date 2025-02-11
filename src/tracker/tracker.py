@@ -546,11 +546,8 @@ class Tracker:
             label_path = os.path.join(self.path_to_known_persons, directory)
             embeddings = []
             for file in os.listdir(label_path):
-                if (
-                    (".jpg" in file.lower())
-                    or (".jpeg" in file.lower())
-                    or (".png" in file.lower())
-                ):
+                if any(file.lower().endswith(suffix)
+                       for suffix in (".jpg", ".jpeg", ".png")):
                     im = Image.open(label_path + "/" + file).convert("RGB")
                     img_obj = ImageObject(viam_image=None, pil_image=im)
 
