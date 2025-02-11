@@ -552,21 +552,22 @@ class Tracker:
                         "Ignoring unsupported file type: %s. Only .jpg, .jpeg, and .png files are supported.",  # pylint: disable=line-too-long
                         file,
                     )
-                else:
-                    im = Image.open(label_path + "/" + file).convert("RGB")
-                    img_obj = ImageObject(viam_image=None, pil_image=im)
+                    continue
 
-                    detections = self.detector.detect(img_obj)
+                im = Image.open(label_path + "/" + file).convert("RGB")
+                img_obj = ImageObject(viam_image=None, pil_image=im)
 
-                    if not detections:
-                        continue
+                detections = self.detector.detect(img_obj)
 
-                    # Compute feature vectors for the current detections
-                    batched_features_vectors = self.encoder.compute_features(
-                        img_obj, detections
-                    )
-                    list_of_tensors = list(batched_features_vectors.unbind(dim=0))
-                    embeddings += list_of_tensors
+                if not detections:
+                    continue
+
+                # Compute feature vectors for the current detections
+                batched_features_vectors = self.encoder.compute_features(
+                    img_obj, detections
+                )
+                list_of_tensors = list(batched_features_vectors.unbind(dim=0))
+                embeddings += list_of_tensors
 
             self.labeled_person_embeddings[directory] = embeddings
 
