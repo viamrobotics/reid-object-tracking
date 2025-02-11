@@ -33,6 +33,8 @@ tabulate
 pytest
 pytest-asyncio
 pylint
+mypy==1.15.0
+mypy-extensions==1.0.0
 
 ## for building
 pyinstaller
