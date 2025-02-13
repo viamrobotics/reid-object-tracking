@@ -529,7 +529,7 @@ class Tracker:
 
     def compute_known_persons_embeddings(self):
         """
-        Computes embeddings for known faces from the picture directory.
+        Computes embeddings for known people from the picture directory.
         """
 
         if not self.path_to_known_persons:
