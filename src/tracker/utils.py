@@ -3,10 +3,6 @@ import torch.nn.functional as F
 from PIL import Image
 
 
-class NoFacesDetectedError(Exception):
-    pass
-
-
 def save_tensor(tensor: torch.Tensor, path):
     if tensor.is_cuda:
         tensor = tensor.cpu().detach()

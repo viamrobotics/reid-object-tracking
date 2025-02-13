@@ -21,10 +21,14 @@ from src.tracker.encoder.feature_encoder import FeatureEncoder, get_encoder
 from src.tracker.face_id.identifier import FaceIdentifier
 from src.tracker.track import Track
 from src.tracker.tracks_manager import TracksManager
-from src.tracker.utils import NoFacesDetectedError
 from src.utils import log_cost_matrix, log_tracks_info
 
+
 LOGGER = getLogger(__name__)
+
+
+class NoPersonDetectedError(Exception):
+    pass
 
 
 class Tracker:
@@ -571,9 +575,9 @@ class Tracker:
                 embeddings += list_of_tensors
 
             if not embeddings:
-                raise NoFacesDetectedError(
-                    f"Unable to recognize any face for supposedly-known "
-                    f"person embedding {directory}!"
+                raise NoPersonDetectedError(
+                    f"Unable to recognize any person for supposedly-known "
+                    f"embedding {directory}!"
                 )
             self.labeled_person_embeddings[directory] = embeddings
 
