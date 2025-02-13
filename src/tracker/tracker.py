@@ -576,8 +576,9 @@ class Tracker:
 
             if not embeddings:
                 raise NoPersonDetectedError(
-                    f"Unable to recognize any person for supposedly-known "
-                    f"embedding {directory}!"
+                    f"Unable to recognize any person in pictures from "
+                    f"{directory}. Are you sure it contains a picture of a "
+                    f"person?"
                 )
             self.labeled_person_embeddings[directory] = embeddings
 

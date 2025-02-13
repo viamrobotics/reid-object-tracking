@@ -166,7 +166,8 @@ class FaceIdentifier:
 
             if not embeddings:
                 raise NoFacesDetectedError(
-                    f"Unable to recognize any face for supposedly-known "
-                    f"embedding {directory}!"
+                    f"Unable to recognize any face in pictures from "
+                    f"{directory}. Are you sure it contains a picture of a "
+                    f"person's face?"
                 )
             self.known_embeddings[directory] = embeddings
