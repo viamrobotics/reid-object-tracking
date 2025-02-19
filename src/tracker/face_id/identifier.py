@@ -163,6 +163,7 @@ class FaceIdentifier:
                 # TODO: check if there is only one face here
                 embed = self.feature_extractor.get_embedding(face)
                 embeddings.append(embed)
+                LOGGER.debug(f"Added embedding for {directory}/{file}")
 
             if not embeddings:
                 raise NoFacesDetectedError(

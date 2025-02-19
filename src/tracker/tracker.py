@@ -565,6 +565,8 @@ class Tracker:
                 detections = self.detector.detect(img_obj)
 
                 if not detections:
+                    LOGGER.warning(
+                        f"Unable to find person in {directory}/{file}")
                     continue
 
                 # Compute feature vectors for the current detections
@@ -573,6 +575,7 @@ class Tracker:
                 )
                 list_of_tensors = list(batched_features_vectors.unbind(dim=0))
                 embeddings += list_of_tensors
+                LOGGER.debug(f"Added embedding for {directory}/{file}")
 
             if not embeddings:
                 raise NoPersonDetectedError(
